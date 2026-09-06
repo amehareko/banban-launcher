@@ -1,0 +1,73 @@
+plugins {
+    id 'com.android.application'
+}
+
+/* 签名配置：在项目根目录放 keystore.properties（格式见 keystore.properties.example，
+   该文件已被 .gitignore 排除，不会泄露口令）即可自动启用 release 签名；
+   没有也能构建（产出未签名 APK，可用 adb 侧载或改用 debug 签名） */
+def keystorePropsFile = rootProject.file('keystore.properties')
+def keystoreProps = new Properties()
+if (keystorePropsFile.exists()) {
+    keystorePropsFile.withInputStream { keystoreProps.load(it) }
+}
+
+android {
+    namespace 'com.class4.signboard'
+    compileSdk 34
+
+    defaultConfig {
+        /* 沿用实测通过的班班X包名（原 crosswalk flavor），已装设备可直接覆盖升级 */
+        applicationId "com.amehareko.class.xw"
+        minSdk 21
+        targetSdk 34
+        versionCode 7
+        versionName "1.4.2"
+        manifestPlaceholders = [APP_LABEL: "班班X"]
+        /* 内嵌内核 so 只有 armeabi-v7a（32 位）：强制应用以 32 位运行，
+           64 位设备上进程须为 v7a 才能加载 libxwalkcore.so */
+        ndk {
+            abiFilters 'armeabi-v7a'
+        }
+    }
+
+    /* Crosswalk 的 so 走传统解压安装（Android 5.x 的 PackageManager 只认 extractNativeLibs=true） */
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = true
+        }
+    }
+
+    /* 签名配置：把你自己的 banban.keystore 放到项目根目录即可自动启用 release 签名；
+       没有 keystore 也能构建（产出未签名 APK，可用 adb 侧载或改用 debug 签名） */
+    signingConfigs {
+        release {
+            if (keystorePropsFile.exists()) {
+                storeFile rootProject.file(keystoreProps['storeFile'] ?: 'banban.keystore')
+                storePassword keystoreProps['storePassword']
+                keyAlias keystoreProps['keyAlias']
+                keyPassword keystoreProps['keyPassword']
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            if (keystorePropsFile.exists()) {
+                signingConfig signingConfigs.release
+            }
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+
+dependencies {
+    /* Crosswalk 23.53.589.4（重打包为 lib/ 布局、仅 armeabi-v7a），
+       2016 年的 AAR 自带 support-v4 依赖声明，flatDir 引入会丢 pom，需显式补上 */
+    implementation files('libs/xwalk_core_library-23.53.589.4-v7a.aar')
+    implementation 'com.android.support:support-v4:23.4.0'
+}
