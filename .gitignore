@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# IDE
+.idea/
+*.iml
+captures/
+
+# 本机配置
+local.properties
+
+# 产物与体积大户（Crosswalk 二进制请按 README 自行获取）
+*.apk
+*.aab
+app/libs/*.aar
+app/src/main/jniLibs/
+
+# 签名密钥与口令（千万不要提交自己的 keystore 哦）
+*.keystore
+*.jks
+keystore.properties
+
+# 杂项
+hs_err_pid*
+.DS_Store
+Thumbs.db
