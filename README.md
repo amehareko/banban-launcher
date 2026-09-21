@@ -115,7 +115,8 @@ gradle assembleRelease
   `extractNativeLibs=true` 的 so 解压安装
 
 改页面不想上机也能验证一下下 ٩(ˊᗜˋ*)و 仓库里带了 jsdom 冒烟脚本，
-24 项断言覆盖启动器双通道、天气位置编辑、触屏 tap 判定：
+27 项断言覆盖启动器双通道、天气位置编辑、触屏 tap 判定
+（含"慢起手滚动不许误开应用"这类专治误触的回归）：
 
 ```bash
 npm i jsdom
