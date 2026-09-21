@@ -20,8 +20,8 @@ android {
         applicationId "com.amehareko.class.xw"
         minSdk 21
         targetSdk 34
-        versionCode 9
-        versionName "1.4.4"
+        versionCode 10
+        versionName "1.5.0"
         manifestPlaceholders = [APP_LABEL: "班班X"]
         /* 内嵌内核 so 只有 armeabi-v7a（32 位）：强制应用以 32 位运行，
            64 位设备上进程须为 v7a 才能加载 libxwalkcore.so */

@@ -52,6 +52,17 @@ function boot(opts) {
     pretendToBeVisual: true,
     virtualConsole: vc,
     beforeParse(window) {
+      if (opts.stubXhr) {
+        /* 拦截 XHR，记录请求 URL（用于断言类型参数是否带上） */
+        window.__urls = [];
+        window.XMLHttpRequest = function () {
+          this.readyState = 0;
+          this.open = function (m, u) { window.__urls.push(String(u)); };
+          this.send = function () {};
+          this.setRequestHeader = function () {};
+          this.abort = function () {};
+        };
+      }
       if (opts.bridge) {
         window.BanbanApp = {
           getApps: () => JSON.stringify([
@@ -242,6 +253,44 @@ function boot(opts) {
   touch(t8.window, it8[0], 'touchend', 100, 302);
   await sleep(250);
   assert(t8.window.__launchCount === undefined, 'T8 慢按 450ms 不启动应用');
+
+  /* --- H: 长按一言卡片选类型 --- */
+  const h1 = boot({ stubXhr: true });
+  const hcard = h1.window.document.getElementById('hitoCard');
+  assert(!!hcard, 'H0 一言卡片存在');
+  hcard.dispatchEvent(new h1.window.Event('touchstart', { bubbles: true }));
+  await sleep(30);
+  hcard.dispatchEvent(new h1.window.Event('touchend', { bubbles: true }));
+  hcard.dispatchEvent(new h1.window.Event('click', { bubbles: true }));
+  await sleep(700);
+  assert(h1.window.document.getElementById('hitoMask').className.indexOf('open') < 0,
+    'H1 快速点击不弹类型层(仍是换一句)');
+
+  /* H2 长按 600ms 弹出，且含上游全部 12 类 + 全部随机 */
+  hcard.dispatchEvent(new h1.window.Event('touchstart', { bubbles: true }));
+  await sleep(750);
+  hcard.dispatchEvent(new h1.window.Event('touchend', { bubbles: true }));
+  assert(h1.window.document.getElementById('hitoMask').className.indexOf('open') >= 0, 'H2 长按弹出类型层');
+  const hItems = h1.window.document.querySelectorAll('#hitoTypes button.htitem');
+  assert(hItems.length === 13, 'H2 类型齐全(12 类 + 全部随机), 实际 ' + hItems.length);
+  const codes = Array.prototype.map.call(hItems, (b) => b.getAttribute('data-k')).join('');
+  assert(codes === 'abcdefghijkl', 'H2 覆盖 a~l 全部类型(实际 ' + codes + ')');
+
+  /* H3 点选"动画" -> 持久化 + 关闭弹层 + 请求带 c=a */
+  const btnA = h1.window.document.querySelector('#hitoTypes button.htitem[data-k="a"]');
+  btnA.dispatchEvent(new h1.window.Event('click', { bubbles: true }));
+  await sleep(60);
+  assert(h1.window.localStorage.getItem('g34_class4_hitotype') === 'a', 'H3 类型已持久化');
+  assert(h1.window.document.getElementById('hitoMask').className.indexOf('open') < 0, 'H3 选完自动关闭弹层');
+  const withC = h1.window.__urls.filter((u) => u.indexOf('hitokoto.cn') >= 0 && u.indexOf('c=a') >= 0);
+  assert(withC.length > 0, 'H3 请求带上 c=a 参数(实际 ' + JSON.stringify(h1.window.__urls) + ')');
+
+  /* H4 重新打开，选中项高亮（持久化生效） */
+  hcard.dispatchEvent(new h1.window.Event('touchstart', { bubbles: true }));
+  await sleep(750);
+  hcard.dispatchEvent(new h1.window.Event('touchend', { bubbles: true }));
+  const again = h1.window.document.querySelector('#hitoTypes button.htitem[data-k="a"]');
+  assert(again.className.indexOf('on') >= 0, 'H4 重新打开时当前类型高亮');
 
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);

@@ -99,6 +99,21 @@ button{font-family:inherit;cursor:pointer;outline:none;}
 .wxbtns{text-align:right;padding:6px 10px 8px 10px;font-size:0;}
 .wxbtns .theme-btn{float:none;display:inline-block;margin-left:8px;}
 
+/* 一言类型选择弹层：长按一言卡片打开，类型网格点选（复用 .panel 主题皮肤） */
+.hito-dialog{width:330px;margin-left:-165px;margin-top:-150px;}
+.htgrid{padding:6px 10px 4px 10px;font-size:0;text-align:left;max-height:290px;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.htitem{
+  display:inline-block;width:31%;margin:0 2% 6px 0;font-size:12px;
+  padding:7px 2px;text-align:center;cursor:pointer;
+  -webkit-border-radius:8px;border-radius:8px;
+  border:1px solid rgba(128,128,128,0.35);background:transparent;color:inherit;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis;
+}
+.htitem:nth-child(3n){margin-right:0;}
+/* 选中态：继承当前主题强调色（各主题的 .theme-btn 配色由主题变量给出） */
+.htitem.on{font-weight:bold;border-width:2px;padding:6px 2px;}
+.httag{font-size:10px;opacity:0.55;margin-left:3px;}
+
 /* ============ 主题切换过渡动画 ============ */
 /* 1) 关键元素平滑渐变（纯色属性；渐变背景 background-image 无法过渡，由扫过遮罩弥补） */
 body,.topbar,.theme-btn,.apps-btn,.panel,.pitem,.aitem,.aitem .aicon,.card,.title,.subtitle,.clock-time,.clock-date,
@@ -1298,6 +1313,18 @@ var CLASS_CITY_LON  = 87.614;
   </div>
 </div>
 
+<!-- 一言类型选择弹层：长按一言卡片打开；点选类型立即生效并换一句 -->
+<div id="hitoMask" class="wxmask">
+  <div id="hitoDialog" class="panel wx-dialog hito-dialog">
+    <div class="ptitle">选择一言类型</div>
+    <div id="hitoTypes" class="htgrid"></div>
+    <div class="wxtip">长按一言卡片可随时更换；选「全部随机」则不限制类型</div>
+    <div class="wxbtns">
+      <button type="button" id="hitoNo" class="theme-btn">关闭</button>
+    </div>
+  </div>
+</div>
+
 <div class="wrap" id="wrap">
   <div class="fit" id="fit">
     <div class="greeting" id="greeting">你好，4班人</div>
@@ -1955,6 +1982,33 @@ var CLASS_CITY_LON  = 87.614;
   /* 用 http 明文：班牌 Android 5.1 系统证书库过旧，https 握手失败（APK 清单已开 usesCleartextTraffic 豁免） */
   var HITO_JSON = 'http://v1.hitokoto.cn/?encode=json&charset=utf-8';
   var HITO_JS   = 'http://v1.hitokoto.cn/?encode=js&charset=utf-8&select=%23hitokoto_text';
+
+  /* 上游 v1.hitokoto.cn 支持的全部句子类型（c 参数）a~l；
+     j 网易云官方已于 2022.11.18 停用插件，保留选项但标注提示 */
+  var HITO_TYPES = [
+    { k: '', n: '全部随机' },
+    { k: 'a', n: '动画' },
+    { k: 'b', n: '漫画' },
+    { k: 'c', n: '游戏' },
+    { k: 'd', n: '文学' },
+    { k: 'e', n: '原创' },
+    { k: 'f', n: '来自网络' },
+    { k: 'g', n: '其他' },
+    { k: 'h', n: '影视' },
+    { k: 'i', n: '诗词' },
+    { k: 'j', n: '网易云', tip: '官方已停用' },
+    { k: 'k', n: '哲学' },
+    { k: 'l', n: '抖机灵' }
+  ];
+  var HITO_TYPE_KEY = 'g34_class4_hitotype';
+  var hitoType = readStore(HITO_TYPE_KEY) || '';
+  function hitoTypeName(k) {
+    var i;
+    for (i = 0; i < HITO_TYPES.length; i++) { if (HITO_TYPES[i].k === k) { return HITO_TYPES[i].n; } }
+    return '全部随机';
+  }
+  /* 选了具体类型就带 c 参数（上游支持多值，这里单选即可） */
+  function hitoParam() { return hitoType ? ('&c=' + hitoType) : ''; }
   /* 断网 / 老 webview 不支持时的本地兜底句库 */
   var LOCAL_HITO = [
     '今天的努力，是明天的底气。',
@@ -1995,6 +2049,52 @@ var CLASS_CITY_LON  = 87.614;
     showHito(LOCAL_HITO[i], '');
   }
 
+  /* ---------- 一言类型选择（长按一言卡片打开，点选即生效） ---------- */
+  var hitoDlgOpen = false;
+  function renderHitoTypes() {
+    var box = $('hitoTypes');
+    if (!box) { return; }
+    var html = '', i;
+    for (i = 0; i < HITO_TYPES.length; i++) {
+      var t = HITO_TYPES[i];
+      html += '<button type="button" class="htitem' + (t.k === hitoType ? ' on' : '') +
+                '" data-k="' + escHtml(t.k) + '">' + escHtml(t.n) +
+                (t.tip ? '<span class="httag">' + escHtml(t.tip) + '</span>' : '') +
+              '</button>';
+    }
+    box.innerHTML = html;
+    var btns = box.getElementsByTagName('button');
+    for (i = 0; i < btns.length; i++) {
+      (function (btn) {
+        btn.onclick = function (e) {
+          if (e && e.stopPropagation) { e.stopPropagation(); }
+          hitoApplyType(btn.getAttribute('data-k'));
+        };
+      })(btns[i]);
+    }
+  }
+  function hitoApplyType(k) {
+    hitoType = k || '';
+    writeStore(HITO_TYPE_KEY, hitoType);
+    closeHitoTypes();
+    /* 作废在途请求并清掉占用标记，保证换类型必定立刻换一句（否则旧请求挂着会被 hitoBusy 挡掉） */
+    hitoToken++;
+    hitoBusy = false;
+    loadHitokoto();
+  }
+  function openHitoTypes() {
+    var mask = $('hitoMask');
+    if (!mask) { return; }
+    renderHitoTypes();
+    mask.className = 'wxmask open';
+    hitoDlgOpen = true;
+  }
+  function closeHitoTypes() {
+    var mask = $('hitoMask');
+    if (mask) { mask.className = 'wxmask'; }
+    hitoDlgOpen = false;
+  }
+
   /* 兜底二：脚本注入（amehareko.space 采用的方式，不依赖 XHR / CORS） */
   function loadByScript(tk) {
     hitoBusy = true;
@@ -2010,7 +2110,7 @@ var CLASS_CITY_LON  = 87.614;
       try { s.parentNode.removeChild(s); } catch (e) {}
     }
     s.charset = 'utf-8';
-    s.src = HITO_JS + '&_=' + (new Date()).getTime();
+    s.src = HITO_JS + hitoParam() + '&_=' + (new Date()).getTime();
     s.onload = s.onreadystatechange = function () {
       if (!s.readyState || s.readyState === 'loaded' || s.readyState === 'complete') {
         s.onload = s.onreadystatechange = null;
@@ -2058,7 +2158,7 @@ var CLASS_CITY_LON  = 87.614;
       finish(json);
     };
     try {
-      xhr.open('GET', HITO_JSON + '&_=' + (new Date()).getTime(), true);
+      xhr.open('GET', HITO_JSON + hitoParam() + '&_=' + (new Date()).getTime(), true);
       xhr.send(null);
     } catch (e) {
       done = true;
@@ -2990,9 +3090,44 @@ var CLASS_CITY_LON  = 87.614;
   tick();
   setInterval(tick, 250);
 
-  /* 一言：进页面取一次，点击换一句，每 5 分钟自动换 */
+  /* 一言：进页面取一次，点击换一句，每 5 分钟自动换；长按 600ms 打开类型选择 */
   var hitoCard = $('hitoCard');
-  if (hitoCard) { hitoCard.onclick = loadHitokoto; }
+  if (hitoCard) {
+    var hitoPressT = null, hitoLong = false;
+    function hitoPressStart() {
+      hitoLong = false;
+      if (hitoPressT) { clearTimeout(hitoPressT); }
+      hitoPressT = setTimeout(function () {
+        hitoLong = true;
+        openHitoTypes();
+      }, 600);
+    }
+    function hitoPressCancel() {
+      if (hitoPressT) { clearTimeout(hitoPressT); hitoPressT = null; }
+    }
+    if (hitoCard.addEventListener) {
+      hitoCard.addEventListener('touchstart', hitoPressStart, false);
+      hitoCard.addEventListener('touchmove', hitoPressCancel, false);
+      hitoCard.addEventListener('touchend', hitoPressCancel, false);
+      hitoCard.addEventListener('touchcancel', hitoPressCancel, false);
+      hitoCard.addEventListener('mousedown', hitoPressStart, false);
+      hitoCard.addEventListener('mouseup', hitoPressCancel, false);
+      hitoCard.addEventListener('mouseleave', hitoPressCancel, false);
+    }
+    hitoCard.onclick = function () {
+      if (hitoLong) { hitoLong = false; return; } /* 长按后那一次点击不当作换一句 */
+      loadHitokoto();
+    };
+    if (hitoCard.setAttribute) { hitoCard.setAttribute('title', '点击换一句 · 长按换类型'); }
+  }
+  (function () {
+    var mask = $('hitoMask');
+    if (!mask) { return; }
+    var no = $('hitoNo'), dlg = $('hitoDialog');
+    if (no) { no.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } closeHitoTypes(); }; }
+    if (dlg) { dlg.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } }; }
+    mask.onclick = function () { closeHitoTypes(); };
+  })();
   loadHitokoto();
   setInterval(loadHitokoto, 300000);
 
