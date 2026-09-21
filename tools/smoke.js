@@ -28,6 +28,19 @@ function touch(win, el, type, x, y) {
   return ev;
 }
 
+/* jsdom 没有布局，给容器伪造可滚动属性以便测 scrollTop 快照逻辑 */
+function makeScrollable(panel) {
+  let top = 0;
+  Object.defineProperty(panel, 'scrollHeight', { value: 600, configurable: true });
+  Object.defineProperty(panel, 'clientHeight', { value: 260, configurable: true });
+  Object.defineProperty(panel, 'scrollTop', {
+    get: function () { return top; },
+    set: function (v) { top = v; },
+    configurable: true
+  });
+  return panel;
+}
+
 function boot(opts) {
   const errors = [];
   const vc = new VirtualConsole();
@@ -150,6 +163,7 @@ function boot(opts) {
   touch(t1.window, tItems[0], 'touchstart', 100, 300);
   touch(t1.window, tItems[0], 'touchend', 100, 300);
   tItems[0].dispatchEvent(new t1.window.Event('click', { bubbles: true })); /* 浏览器补发的合成 click */
+  await sleep(220); /* 新版判定后延迟执行，须等到窗口过去 */
   assert(t1.window.__launchCount === 1, 'T1 点按启动一次且合成 click 被吞(实际 ' + t1.window.__launchCount + ' 次)');
   assert(t1.window.__launched === 'com.android.settings', 'T1 启动的是被点的应用');
 
@@ -175,6 +189,7 @@ function boot(opts) {
   await sleep(400); /* 静默期过后 */
   touch(t3.window, it3[0], 'touchstart', 100, 300);
   touch(t3.window, it3[0], 'touchend', 100, 300);
+  await sleep(220);
   assert(t3.window.__launchCount === 1, 'T3 静默期过后恢复正常点击');
 
   /* T4 鼠标环境（无 touch 前置）-> click 兜底仍可用 */
@@ -191,7 +206,42 @@ function boot(opts) {
   touch(t5.window, it5[0], 'touchstart', 100, 300);
   await sleep(700);
   touch(t5.window, it5[0], 'touchend', 100, 300);
+  await sleep(220);
   assert(t5.window.__launchCount === undefined, 'T5 长按不启动应用');
+
+  /* T6 最痛场景：慢起手滚动 —— 主线程收不到足够位移的 touchmove(仅 4px)，
+     但面板真的滚动了(scrollTop 变化)，必须靠 scrollTop 快照拦下 */
+  const t6 = boot({ bridge: true });
+  t6.window.document.getElementById('appsBtn').dispatchEvent(new t6.window.Event('click', { bubbles: true }));
+  const panel6 = makeScrollable(t6.window.document.getElementById('appsPanel'));
+  const it6 = panel6.querySelectorAll('button.aitem');
+  touch(t6.window, it6[0], 'touchstart', 100, 300);
+  touch(t6.window, it6[0], 'touchmove', 100, 304); /* 仅 4px < slop：模拟合成器接管后收不到事件 */
+  panel6.scrollTop = 30;                           /* 但列表确实滚动了 */
+  touch(t6.window, it6[0], 'touchend', 100, 304);
+  await sleep(250);
+  assert(t6.window.__launchCount === undefined, 'T6 慢起手滚动(位移小但已滚)不误开应用');
+
+  /* T7 延迟执行窗口：抬手后惯性滚动信号滞后到达，应撤销这次点击 */
+  const t7 = boot({ bridge: true });
+  t7.window.document.getElementById('appsBtn').dispatchEvent(new t7.window.Event('click', { bubbles: true }));
+  const panel7 = t7.window.document.getElementById('appsPanel');
+  const it7 = panel7.querySelectorAll('button.aitem');
+  touch(t7.window, it7[0], 'touchstart', 100, 300);
+  touch(t7.window, it7[0], 'touchend', 100, 300);
+  panel7.dispatchEvent(new t7.window.Event('scroll', { bubbles: true })); /* 滚动滞后送达 */
+  await sleep(250);
+  assert(t7.window.__launchCount === undefined, 'T7 延迟窗口内的滚动撤销点击');
+
+  /* T8 慢按犹疑：touchmove 收不全、且时长 450ms > 300ms -> 不启动 */
+  const t8 = boot({ bridge: true });
+  t8.window.document.getElementById('appsBtn').dispatchEvent(new t8.window.Event('click', { bubbles: true }));
+  const it8 = t8.window.document.getElementById('appsPanel').querySelectorAll('button.aitem');
+  touch(t8.window, it8[0], 'touchstart', 100, 300);
+  await sleep(450);
+  touch(t8.window, it8[0], 'touchend', 100, 302);
+  await sleep(250);
+  assert(t8.window.__launchCount === undefined, 'T8 慢按 450ms 不启动应用');
 
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);

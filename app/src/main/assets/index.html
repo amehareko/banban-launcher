@@ -1505,17 +1505,42 @@ var CLASS_CITY_LON  = 87.614;
   function closeApps() { $('appsPanel').className = 'panel apps-panel'; appsOpen = false; }
 
   /* ---------- 触屏 tap 判定：把「点一下」与「滚动/甩动」分开 ----------
-     背景：列表项若直接用 click，浏览器 ~8px 的触摸 slop 会把起手抖动、
-     慢速起滑、惯性停手都判成 tap，滚动列表时就会误开应用。
-     这里自己判定手势：位移超阈值或按住过久都不算点击，并吃掉合成 click。 */
-  var TAP_SLOP = 12;        /* 位移超过 12px 视为滚动，不再算点击 */
-  var TAP_MAX_MS = 600;     /* 按住超过 600ms 视为长按/犹疑，不启动 */
+      【v2 修订】第一版靠 touchmove 位移判定，实机仍然误开——原因是一旦浏览器
+      把手势判为滚动并交给合成器线程，主线程就不一定收得到后续 touchmove：
+      慢起手时首个 touchmove 位移还很小(<slop)就再也收不到事件，moved 永远是
+      false，抬手即误判为点击；而快速甩动能拿到大位移的 touchmove，反倒正常。
+      于是改用三个不依赖 touchmove 的信号：
+        ① 面板 scrollTop 快照：起手记值、抬手对比，只要滚动过就不算点击；
+        ② 触摸时长：真正的点按 <300ms，慢起手/犹疑必然超时；
+        ③ 延迟执行：抬手后等 140ms 再启动，期间任何 scroll/新手势都能把它撤销
+           （专治惯性滚动的信号滞后）。touchmove 位移降级为辅助判据。 */
+  var TAP_SLOP = 8;         /* 位移超过 8px 视为滚动（辅助判据，已不强依赖） */
+  var TAP_MAX_MS = 300;     /* 点按最长 300ms，超时视为滚动/犹疑，不启动 */
+  var TAP_DELAY_MS = 140;   /* 判定后延迟执行，留出让滚动信号到达的窗口 */
   var SCROLL_LOCK_MS = 350; /* 滚动停下后的静默期，期间忽略点击 */
   var lastScrollAt = 0;
-  function markScroll() { lastScrollAt = (new Date()).getTime(); }
+  var pendingTap = null;    /* 待执行的 tap，任何滚动都会撤销它 */
+
+  function clearPendingTap() {
+    if (pendingTap) { clearTimeout(pendingTap); pendingTap = null; }
+  }
+  function markScroll() {
+    lastScrollAt = (new Date()).getTime();
+    clearPendingTap(); /* 发生了滚动，撤销刚判定的点击 */
+  }
+  /* 找到真正发生滚动的容器（列表面板本身），用于 scrollTop 快照 */
+  function scrollParent(el) {
+    var p = el.parentNode;
+    while (p && p.nodeType === 1) {
+      if (p.scrollHeight && p.scrollHeight > p.clientHeight + 2) { return p; }
+      p = p.parentNode;
+    }
+    return null;
+  }
 
   function bindTap(el, fn) {
     var sx = 0, sy = 0, st = 0, moved = false, touched = false, resetTimer = null;
+    var panel = null, scrollTop0 = 0;
     function touchOf(e) { return (e && e.touches && e.touches[0]) || (e && e.changedTouches && e.changedTouches[0]) || null; }
     function scheduleReset() {
       if (resetTimer) { clearTimeout(resetTimer); }
@@ -1523,9 +1548,12 @@ var CLASS_CITY_LON  = 87.614;
     }
     function onStart(e) {
       var t = touchOf(e);
-      if (!t) { return; }          /* 鼠标环境不接管，交给下面的 click */
+      clearPendingTap();              /* 新手势一来，撤销上一次待执行的点击 */
+      if (!t) { return; }             /* 鼠标环境不接管，交给下面的 click */
       touched = true; moved = false;
       sx = t.clientX; sy = t.clientY; st = (new Date()).getTime();
+      panel = scrollParent(el);
+      scrollTop0 = panel ? panel.scrollTop : 0;
       el.className = el.className + (el.className.indexOf(' aitem-on') >= 0 ? '' : ' aitem-on');
     }
     function onMove(e) {
@@ -1535,23 +1563,31 @@ var CLASS_CITY_LON  = 87.614;
         moved = true;
         el.className = el.className.replace(/ aitem-on/g, '');
       }
+      /* 位移中就开始的滚动可能还没反映到 scrollTop，此处的移动也撤销待执行 */
+      if (moved) { clearPendingTap(); }
     }
     function onEnd(e) {
       el.className = el.className.replace(/ aitem-on/g, '');
       if (!touched) { return; }
       scheduleReset();
-      var dt = (new Date()).getTime() - st;
-      var sinceScroll = (new Date()).getTime() - lastScrollAt;
-      if (!moved && dt <= TAP_MAX_MS && sinceScroll > SCROLL_LOCK_MS) {
-        if (e && e.preventDefault) { e.preventDefault(); } /* 吃掉随后的合成 click，防二次触发 */
+      clearPendingTap();
+      if (moved) { return; }                                       /* ① 位移够大 */
+      if ((new Date()).getTime() - st > TAP_MAX_MS) { return; }    /* ② 按太久 */
+      if ((new Date()).getTime() - lastScrollAt <= SCROLL_LOCK_MS) { return; } /* ③ 滚动静默期 */
+      if (panel && panel.scrollTop !== scrollTop0) { markScroll(); return; }   /* ④ 已滚动过 */
+      if (e && e.preventDefault) { e.preventDefault(); } /* 吃掉随后的合成 click，防二次触发 */
+      /* ⑤ 延迟执行：让滞后的惯性滚动有机会把它撤销 */
+      pendingTap = setTimeout(function () {
+        pendingTap = null;
+        if (panel && panel.scrollTop !== scrollTop0) { return; }
         fn(el);
-      }
+      }, TAP_DELAY_MS);
     }
     el.addEventListener('touchstart', onStart, false);
     el.addEventListener('touchmove', onMove, false);
     el.addEventListener('touchend', onEnd, false);
     el.addEventListener('touchcancel', function (e) {
-      moved = true; touched = false;
+      moved = true; touched = false; clearPendingTap();
       el.className = el.className.replace(/ aitem-on/g, '');
       if (e && e.stopPropagation) { e.stopPropagation(); }
     }, false);
