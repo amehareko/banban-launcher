@@ -1,5 +1,7 @@
 # 🌸 Banban Launcher · 班班启动器
 
+<img src="docs/icon.jpg" width="120" alt="icon">
+
 > 一个为电子班牌设计的启动器 (๑•̀ㅂ•́)و✧
 >
 > 把教室里的 Android 电子班牌变成一块「会呼吸」的班级主页：漂亮的待机界面、
@@ -8,7 +10,11 @@
 
 | 主页 | 应用列表 | 天气·改位置 |
 |:---:|:---:|:---:|
-| ![主页](docs/screenshot-main.png) | ![应用列表](docs/screenshot-applist.png) | ![天气](docs/screenshot-weather-beijing.png) |
+| ![主页](docs/screenshot-main.png) | ![应用列表](docs/screenshot-applist.png) | ![天气](docs/weatherLocationSetting.png) |
+
+| 主题菜单 | 倒数日 |
+|:---:|:---:|
+| ![主题菜单](docs/themesMenu.png) | ![倒数日](docs/countDownDates.png) |
 
 ## ✨ Features
 
