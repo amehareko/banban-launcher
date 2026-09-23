@@ -1354,6 +1354,14 @@ var CLASS_CITY_LON  = 87.614;
           <button type="button" class="theme-btn" id="pwdChangeBtn">修改</button>
         </div>
       </div>
+      <div class="prow">
+        <div class="prow-txt">
+          <span class="pname">隐藏需密码</span>
+          <span class="pdesc" id="hideLockTxt">关闭：长按应用即可隐藏</span>
+        </div>
+        <button type="button" class="switch" id="hideLockSw"><i></i></button>
+        <div class="clearfix"></div>
+      </div>
       <div class="setrow">
         <span class="sr-txt">已隐藏应用</span>
         <span class="sr-desc" id="hideCntTxt">当前没有隐藏的应用</span>
@@ -1775,6 +1783,7 @@ var CLASS_CITY_LON  = 87.614;
   var HIDE_KEY = 'g34_class4_hidden';
   var PWD_KEY = 'g34_class4_pwd';
   var PWD_ON_KEY = 'g34_class4_pwdOn';
+  var HIDE_LOCK_KEY = 'g34_class4_hideLock'; /* 「隐藏也要密码」：默认关闭，保持免密长按即藏 */
   var PWD_MIN = 4, PWD_MAX = 8;
   var appsManage = false; /* 管理模式：显示被隐藏的应用，可恢复 */
 
@@ -1805,6 +1814,9 @@ var CLASS_CITY_LON  = 87.614;
   function setPwd(v) { writeStore(PWD_KEY, v); }
   function pwdOn() { return readStore(PWD_ON_KEY) === '1'; }
   function setPwdOn(on) { writeStore(PWD_ON_KEY, on ? '1' : '0'); refreshPrivUi(); }
+  /* 隐藏是否也要密码（默认关；开了但没密码时自动降级为免密，不会把自己锁在外面） */
+  function hideLocked() { return readStore(HIDE_LOCK_KEY) === '1'; }
+  function setHideLocked(on) { writeStore(HIDE_LOCK_KEY, on ? '1' : '0'); refreshPrivUi(); }
 
   /* 通用二次确认弹层（隐藏/恢复/清空 都走它） */
   var askCb = null;
@@ -2076,18 +2088,28 @@ var CLASS_CITY_LON  = 87.614;
         loadApps();
         toast('已恢复「' + nm + '」');
       });
-    } else {
-      askConfirm('隐藏应用', '隐藏「' + nm + '」？隐藏后需长按右下角 ▦ 按钮并输入密码才能显示。', '隐藏', function () {
-        setHidden(pkg, true);
-        loadApps();
-        /* 误隐藏的代价是学生再也找不到它，所以给 5 秒后悔药 */
-        toast('已隐藏「' + nm + '」', '撤销', function () {
-          setHidden(pkg, false);
-          if (appsOpen) { loadApps(); }
-          toast('已撤销');
-        });
-      });
+      return;
     }
+    /* 「隐藏需密码」打开时才拦一道；没设密码则降级免密，避免锁死操作 */
+    if (hideLocked() && getPwd()) {
+      pwdPrompt('输入密码后才能隐藏应用', function (v) { return (v === getPwd()) ? null : '密码不对，再试试'; },
+        function () { setTimeout(function () { askHideApp(pkg, nm); }, 60); });
+      return;
+    }
+    askHideApp(pkg, nm);
+  }
+
+  function askHideApp(pkg, nm) {
+    askConfirm('隐藏应用', '隐藏「' + nm + '」？隐藏后需长按右下角 ▦ 按钮并输入密码才能显示。', '隐藏', function () {
+      setHidden(pkg, true);
+      loadApps();
+      /* 误隐藏的代价是学生再也找不到它，所以给 5 秒后悔药 */
+      toast('已隐藏「' + nm + '」', '撤销', function () {
+        setHidden(pkg, false);
+        if (appsOpen) { loadApps(); }
+        toast('已撤销');
+      });
+    });
   }
 
   function loadApps() {
@@ -2290,9 +2312,24 @@ var CLASS_CITY_LON  = 87.614;
         : (on ? '已开启：查看隐藏应用需要密码' : '已关闭：长按 ▦ 可直接查看');
     }
     if (cnt) { cnt.textContent = n ? ('已隐藏 ' + n + ' 个应用') : '当前没有隐藏的应用'; }
+    var hl = $('hideLockSw'), hlt = $('hideLockTxt');
+    if (hl) { hl.className = 'switch' + (hideLocked() ? ' on' : ''); }
+    if (hlt) {
+      hlt.textContent = !has ? '需先设置密码才生效'
+        : (hideLocked() ? '开启：长按隐藏应用也要输密码' : '关闭：长按应用即可隐藏');
+    }
   }
   function initPriv() {
     var sw = $('pwdSw'), ch = $('pwdChangeBtn'), mg = $('hideManageBtn'), cl = $('hideClearBtn');
+    var hl = $('hideLockSw');
+    if (hl) {
+      hl.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        if (!hideLocked() && !getPwd()) { toast('先设置一个密码吧'); pwdChangeFlow(); return; }
+        setHideLocked(!hideLocked());
+        toast(hideLocked() ? '隐藏应用也需密码了' : '隐藏应用不再需要密码');
+      };
+    }
     if (sw) {
       sw.onclick = function (e) {
         if (e && e.stopPropagation) { e.stopPropagation(); }

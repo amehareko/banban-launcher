@@ -468,6 +468,48 @@ function boot(opts) {
   assert(hidList(wr).length === 0, 'R0 撤销后隐藏列表清空');
   assert(pnR.querySelectorAll('button.aitem').length === 2, 'R0 撤销后列表恢复 2 项');
 
+  /* ============ L 系列：「隐藏需密码」开关（默认关，保持免密长按即藏） ============ */
+  const l1 = boot({ bridge: true });
+  const wl = l1.window;
+  wl.localStorage.setItem('g34_class4_pwd', '2468');
+  wl.localStorage.setItem('g34_class4_hideLock', '1');
+  click(wl, wl.document.getElementById('appsBtn'));
+  const pnL = wl.document.getElementById('appsPanel');
+  const itL = pnL.querySelectorAll('button.aitem')[0];
+  touch(wl, itL, 'touchstart', 100, 200);
+  await sleep(700);
+  assert(wl.document.getElementById('pwdMask').className.indexOf('open') >= 0, 'L1 开启后长按先弹密码键盘');
+  assert(wl.document.getElementById('askMask').className.indexOf('open') < 0, 'L1 未验证前不弹隐藏确认');
+  typePwd(wl, '2468');
+  click(wl, wl.document.getElementById('pwdOk'));
+  await sleep(140);
+  assert(wl.document.getElementById('askMask').className.indexOf('open') >= 0, 'L1 密码正确后才弹隐藏确认');
+  click(wl, wl.document.getElementById('askOk'));
+  await sleep(60);
+  assert(hidList(wl).length === 1, 'L1 隐藏生效');
+
+  /* L2 开关开着但没设密码 → 降级免密，不能把自己锁在外面 */
+  const l2 = boot({ bridge: true });
+  const wl2 = l2.window;
+  wl2.localStorage.setItem('g34_class4_hideLock', '1');
+  click(wl2, wl2.document.getElementById('appsBtn'));
+  const itL2 = wl2.document.getElementById('appsPanel').querySelectorAll('button.aitem')[0];
+  touch(wl2, itL2, 'touchstart', 100, 200);
+  await sleep(700);
+  assert(wl2.document.getElementById('pwdMask').className.indexOf('open') < 0, 'L2 无密码时降级免密（不弹键盘）');
+  assert(wl2.document.getElementById('askMask').className.indexOf('open') >= 0, 'L2 直接弹隐藏确认');
+
+  /* L3 开关默认关闭 → 有密码也不拦隐藏 */
+  const l3 = boot({ bridge: true });
+  const wl3 = l3.window;
+  wl3.localStorage.setItem('g34_class4_pwd', '2468');
+  click(wl3, wl3.document.getElementById('appsBtn'));
+  const itL3 = wl3.document.getElementById('appsPanel').querySelectorAll('button.aitem')[0];
+  touch(wl3, itL3, 'touchstart', 100, 200);
+  await sleep(700);
+  assert(wl3.document.getElementById('pwdMask').className.indexOf('open') < 0, 'L3 默认关闭时不拦隐藏');
+  assert(wl3.document.getElementById('askTitle').textContent === '隐藏应用', 'L3 直接弹隐藏确认');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });
