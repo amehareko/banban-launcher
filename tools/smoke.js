@@ -563,6 +563,31 @@ function boot(opts) {
   assert(JSON.parse(wg2.localStorage.getItem('g34_class4_hidden')).length === 1,
     'G2 列表变短时不清隐藏项（避免误判为已卸载）');
 
+  /* G3 站在密码键盘前忘密码时，当场就能看到自救方法（设新密码时不该显示） */
+  const g3 = boot({ bridge: true });
+  const wg3 = g3.window;
+  wg3.localStorage.setItem('g34_class4_pwd', '1357');
+  wg3.localStorage.setItem('g34_class4_pwdOn', '1');
+  touch(wg3, wg3.document.getElementById('appsBtn'), 'touchstart', 3800, 2000);
+  await sleep(700);
+  const hint3 = wg3.document.getElementById('pwdHint');
+  assert(hint3.style.display !== 'none', 'G3 验证密码时显示「忘记密码」提示');
+  assert(hint3.textContent.indexOf('长按') >= 0, 'G3 提示里写明了自救操作');
+  /* G4 设置 → 隐私 → 修改密码：验证旧密码时给提示，进入设新密码步骤后收起 */
+  const g4 = boot({ bridge: true });
+  const wg4 = g4.window;
+  wg4.localStorage.setItem('g34_class4_pwd', '1357');
+  wg4.localStorage.setItem('g34_class4_pwdOn', '1');
+  click(wg4, wg4.document.getElementById('pwdChangeBtn'));
+  await sleep(60);
+  assert(wg4.document.getElementById('pwdTitle').textContent.indexOf('输入当前密码') >= 0, 'G4 先验证旧密码');
+  assert(wg4.document.getElementById('pwdHint').style.display !== 'none', 'G4 验证旧密码时显示自救提示');
+  typePwd(wg4, '1357');
+  click(wg4, wg4.document.getElementById('pwdOk'));
+  await sleep(140);
+  assert(wg4.document.getElementById('pwdTitle').textContent.indexOf('设置新密码') >= 0, 'G4 进入设新密码步骤');
+  assert(wg4.document.getElementById('pwdHint').style.display === 'none', 'G4 设新密码时收起「忘记密码」提示');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });

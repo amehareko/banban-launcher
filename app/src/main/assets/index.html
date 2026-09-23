@@ -1436,6 +1436,7 @@ var CLASS_CITY_LON  = 87.614;
       <button type="button" id="pwdNo" class="theme-btn">取消</button>
       <button type="button" id="pwdOk" class="theme-btn">确定</button>
     </div>
+    <div id="pwdHint" class="wxtip" style="text-align:center;padding-bottom:4px;">忘记密码？到「设置 → 隐私」长按「修改」3 秒即可清除</div>
   </div>
 </div>
 
@@ -1947,10 +1948,12 @@ var CLASS_CITY_LON  = 87.614;
     var ds = box.getElementsByTagName('i'), i;
     for (i = 0; i < ds.length; i++) { ds[i].className = (i < pwdBuf.length) ? 'on' : ''; }
   }
-  function pwdPrompt(title, validate, after) {
+  function pwdPrompt(title, validate, after, showHint) {
     pwdBuf = ''; pwdValidate = validate || null; pwdAfter = after || null;
     var t = $('pwdTitle');
     if (t) { t.textContent = title; }
+    var hint = $('pwdHint');
+    if (hint) { hint.style.display = showHint ? '' : 'none'; } /* 设新密码时不该提示"忘记密码" */
     pwdTip('', false);
     pwdDots();
     $('pwdMask').className = 'wxmask open';
@@ -1977,7 +1980,7 @@ var CLASS_CITY_LON  = 87.614;
   function pwdChangeFlow() {
     if (pwdOn() && getPwd()) {
       pwdPrompt('输入当前密码', function (v) { return (v === getPwd()) ? null : '密码不对，再试试'; },
-        function () { setTimeout(pwdStepNew, 60); });
+        function () { setTimeout(pwdStepNew, 60); }, true);
     } else {
       pwdStepNew();
     }
@@ -2064,7 +2067,7 @@ var CLASS_CITY_LON  = 87.614;
   function requestManage() {
     if (pwdOn() && getPwd()) {
       pwdPrompt('输入密码以显示隐藏应用', function (v) { return (v === getPwd()) ? null : '密码不对，再试试'; },
-        function () { enterManage(); });
+        function () { enterManage(); }, true);
     } else {
       enterManage();
     }
