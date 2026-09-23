@@ -412,6 +412,25 @@ function boot(opts) {
   assert(pv4.localStorage.getItem('g34_class4_pwdOn') === '1', 'S3 首次设置密码自动开启密码锁');
   assert(pv4.document.getElementById('pwdSw').className.indexOf('on') >= 0, 'S3 开关回显为开启');
 
+  /* S4 忘记密码：长按「修改」3 秒 → 清除密码（自救，否则忘密码会锁死管理入口） */
+  const p5 = boot({ bridge: true });
+  const w5 = p5.window;
+  w5.localStorage.setItem('g34_class4_pwd', '4321');
+  w5.localStorage.setItem('g34_class4_pwdOn', '1');
+  w5.localStorage.setItem('g34_class4_hidden', '["com.calc"]');
+  const chg = w5.document.getElementById('pwdChangeBtn');
+  assert(!!chg, 'S4 隐私页有修改密码按钮');
+  touch(w5, chg, 'touchstart', 200, 400);
+  await sleep(3200);
+  assert(w5.document.getElementById('pwdMask').className.indexOf('open') < 0, 'S4 长按修改不弹密码键盘');
+  assert(w5.document.getElementById('askMask').className.indexOf('open') >= 0, 'S4 长按修改 3 秒弹出清除确认');
+  assert(w5.document.getElementById('askTitle').textContent === '忘记密码', 'S4 确认层标题为「忘记密码」');
+  click(w5, w5.document.getElementById('askOk'));
+  await sleep(60);
+  assert(w5.localStorage.getItem('g34_class4_pwd') === '', 'S4 密码被清除');
+  assert(w5.localStorage.getItem('g34_class4_pwdOn') === '0', 'S4 密码锁同时关闭');
+  assert(JSON.parse(w5.localStorage.getItem('g34_class4_hidden')).length === 1, 'S4 隐藏列表不受影响');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });

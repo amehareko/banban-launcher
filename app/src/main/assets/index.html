@@ -1362,7 +1362,7 @@ var CLASS_CITY_LON  = 87.614;
           <button type="button" class="theme-btn" id="hideClearBtn">全部恢复</button>
         </div>
       </div>
-      <div class="wxtip">提示：长按应用列表里的应用可隐藏它；长按右下角 ▦ 按钮并输入密码，即可显示被隐藏的应用。</div>
+      <div class="wxtip">提示：长按应用列表里的应用可隐藏它；长按右下角 ▦ 按钮并输入密码，即可显示被隐藏的应用。<br>忘记密码？长按上面的「修改」3 秒即可清除密码（已隐藏的应用不受影响）。</div>
     </div>
   </div>
 </div>
@@ -1913,6 +1913,31 @@ var CLASS_CITY_LON  = 87.614;
       });
   }
 
+  /* 通用长按绑定（给按钮这类不参与滚动的元素用）：
+     长按触发后会吃掉紧随其后那一次 click，避免"长按 + 点击"双响 */
+  function bindLongPress(el, ms, fn) {
+    var t = null, fired = false;
+    function start() {
+      fired = false;
+      if (t) { clearTimeout(t); }
+      t = setTimeout(function () { t = null; fired = true; fn(); }, ms);
+    }
+    function cancel() { if (t) { clearTimeout(t); t = null; } }
+    el.addEventListener('touchstart', start, false);
+    el.addEventListener('touchmove', cancel, false);
+    el.addEventListener('touchend', cancel, false);
+    el.addEventListener('touchcancel', cancel, false);
+    el.addEventListener('mousedown', start, false);
+    el.addEventListener('mouseup', cancel, false);
+    el.addEventListener('mouseleave', cancel, false);
+    var prev = el.onclick;
+    el.onclick = function (e) {
+      if (e && e.stopPropagation) { e.stopPropagation(); }
+      if (fired) { fired = false; return; }
+      if (prev) { prev.call(el, e); }
+    };
+  }
+
   /* 请求进入管理模式：密码开启且有密码时需校验 */
   function requestManage() {
     if (pwdOn() && getPwd()) {
@@ -2196,7 +2221,18 @@ var CLASS_CITY_LON  = 87.614;
         toast(pwdOn() ? '密码锁已开启' : '密码锁已关闭');
       };
     }
-    if (ch) { ch.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } pwdChangeFlow(); }; }
+    if (ch) {
+      ch.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } pwdChangeFlow(); };
+      /* 忘记密码的自救口：长按「修改」3 秒可清除密码（否则忘了就再也进不去管理模式） */
+      bindLongPress(ch, 3000, function () {
+        if (!getPwd()) { toast('当前还没有设置密码'); return; }
+        askConfirm('忘记密码', '清除当前密码？清除后可重新设置，已隐藏的应用不受影响。', '清除', function () {
+          setPwd('');
+          setPwdOn(false);
+          toast('密码已清除');
+        });
+      });
+    }
     if (mg) {
       mg.onclick = function (e) {
         if (e && e.stopPropagation) { e.stopPropagation(); }
