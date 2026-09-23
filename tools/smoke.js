@@ -292,6 +292,126 @@ function boot(opts) {
   const again = h1.window.document.querySelector('#hitoTypes button.htitem[data-k="a"]');
   assert(again.className.indexOf('on') >= 0, 'H4 重新打开时当前类型高亮');
 
+  /* ============ P 系列：应用隐藏 + 密码锁 ============ */
+  function click(win, el) { el.dispatchEvent(new win.Event('click', { bubbles: true, cancelable: true })); }
+  function hidList(win) { return JSON.parse(win.localStorage.getItem('g34_class4_hidden') || '[]'); }
+
+  /* T9 滑动列表项时不能误触发长按（否则滚动就会弹「隐藏」确认，比误启动更烦） */
+  const t9 = boot({ bridge: true });
+  click(t9.window, t9.window.document.getElementById('appsBtn'));
+  const pn9 = t9.window.document.getElementById('appsPanel');
+  makeScrollable(pn9);
+  const it9 = pn9.querySelectorAll('button.aitem')[0];
+  touch(t9.window, it9, 'touchstart', 100, 300);
+  await sleep(80);
+  touch(t9.window, it9, 'touchmove', 100, 344);
+  await sleep(650);
+  assert(t9.window.document.getElementById('askMask').className.indexOf('open') < 0, 'T9 滑动列表项不触发长按隐藏');
+  assert(t9.window.localStorage.getItem('g34_class4_hidden') === null, 'T9 滑动不会写入隐藏记录');
+
+  function keys(win) { return win.document.querySelectorAll('#pwdPad .pwdkey'); }
+  function tapKey(win, k) {
+    const ks = keys(win);
+    for (let i = 0; i < ks.length; i++) {
+      if (ks[i].getAttribute('data-k') === k) { click(win, ks[i]); return; }
+    }
+  }
+  function typePwd(win, s) { for (let i = 0; i < s.length; i++) { tapKey(win, s.charAt(i)); } }
+
+  /* --- P0 长按列表项 → 确认隐藏 --- */
+  const p1 = boot({ bridge: true });
+  const pv1 = p1.window;
+  click(pv1, pv1.document.getElementById('appsBtn'));
+  const pn1 = pv1.document.getElementById('appsPanel');
+  const itA = pn1.querySelectorAll('button.aitem')[0];
+  touch(pv1, itA, 'touchstart', 100, 200);
+  await sleep(700);
+  const askM = pv1.document.getElementById('askMask');
+  assert(askM.className.indexOf('open') >= 0, 'P0 长按列表项弹出确认层');
+  assert(pv1.document.getElementById('askTitle').textContent === '隐藏应用', 'P0 确认层标题为「隐藏应用」');
+  assert(pv1.__launchCount === undefined, 'P0 长按不会启动应用');
+  click(pv1, pv1.document.getElementById('askOk'));
+  await sleep(60);
+  assert(hidList(pv1).length === 1 && hidList(pv1)[0] === 'com.android.settings',
+    'P0 隐藏包名写入 localStorage: ' + JSON.stringify(hidList(pv1)));
+  assert(pn1.querySelectorAll('button.aitem').length === 1, 'P0 隐藏后列表少一项');
+
+  /* --- P1 无密码时：长按 ▦ 直接进入管理模式，隐藏项可见 --- */
+  touch(pv1, pv1.document.getElementById('appsBtn'), 'touchstart', 3800, 2000);
+  await sleep(700);
+  assert(pn1.className.indexOf('open') >= 0, 'P1 长按 ▦ 打开应用列表');
+  assert(pv1.document.getElementById('appsTitle').textContent.indexOf('管理') >= 0, 'P1 进入管理模式');
+  const mItems = pn1.querySelectorAll('button.aitem');
+  assert(mItems.length === 2 && mItems[0].className.indexOf('ahidden') >= 0, 'P1 管理模式显示隐藏项并带标记');
+  assert(mItems[0].innerHTML.indexOf('已隐藏') >= 0, 'P1 隐藏项有「已隐藏」角标');
+
+  /* --- P2 管理模式长按隐藏项 → 恢复 --- */
+  touch(pv1, mItems[0], 'touchstart', 100, 200);
+  await sleep(700);
+  assert(pv1.document.getElementById('askTitle').textContent === '恢复应用', 'P2 长按隐藏项弹出恢复确认');
+  click(pv1, pv1.document.getElementById('askOk'));
+  await sleep(60);
+  assert(hidList(pv1).length === 0, 'P2 恢复后隐藏列表清空');
+  assert(pn1.querySelectorAll('button.aitem').length === 2, 'P2 恢复后列表恢复 2 项');
+
+  /* --- P3 密码开启：长按 ▦ 需校验，错密码拦截、对密码放行 --- */
+  const p3 = boot({ bridge: true });
+  const pv3 = p3.window;
+  pv3.localStorage.setItem('g34_class4_pwd', '1234');
+  pv3.localStorage.setItem('g34_class4_pwdOn', '1');
+  touch(pv3, pv3.document.getElementById('appsBtn'), 'touchstart', 3800, 2000);
+  await sleep(700);
+  assert(pv3.document.getElementById('pwdMask').className.indexOf('open') >= 0, 'P3 长按 ▦ 弹出内置密码键盘');
+  assert(keys(pv3).length === 12, 'P3 键盘 12 个键（0-9 + 清空 + 删除）');
+  typePwd(pv3, '1111');
+  click(pv3, pv3.document.getElementById('pwdOk'));
+  await sleep(40);
+  assert(pv3.document.getElementById('pwdTip').textContent.indexOf('密码不对') >= 0, 'P3 错误密码有提示');
+  assert(pv3.document.getElementById('pwdMask').className.indexOf('open') >= 0, 'P3 错误密码不关闭键盘');
+  assert(pv3.document.getElementById('appsPanel').className.indexOf('open') < 0, 'P3 错误密码不放行管理模式');
+  typePwd(pv3, '1234');
+  click(pv3, pv3.document.getElementById('pwdOk'));
+  await sleep(140);
+  assert(pv3.document.getElementById('pwdMask').className.indexOf('open') < 0, 'P3 正确密码关闭键盘');
+  assert(pv3.document.getElementById('appsTitle').textContent.indexOf('管理') >= 0, 'P3 正确密码进入管理模式');
+
+  /* ============ S 系列：设置面板分类 ============ */
+  const p4 = boot({ bridge: true });
+  const pv4 = p4.window;
+  assert(pv4.document.getElementById('themeBtn').textContent.indexOf('设置') >= 0, 'S0 顶栏按钮标题为「设置」');
+  const segs = pv4.document.querySelectorAll('#setSeg .seg-b');
+  assert(segs.length === 3, 'S1 设置分三类（实际 ' + segs.length + '）');
+  click(pv4, pv4.document.getElementById('themeBtn'));
+  assert(pv4.document.getElementById('paneTheme').className.indexOf('on') >= 0, 'S1 默认显示主题分类');
+  click(pv4, segs[2]);
+  assert(pv4.document.getElementById('panePriv').className.indexOf('on') >= 0 &&
+         pv4.document.getElementById('paneTheme').className.indexOf('on') < 0, 'S2 切到隐私分类');
+  assert(pv4.document.getElementById('hideCntTxt').textContent.indexOf('没有隐藏') >= 0, 'S2 隐私页显示隐藏数量');
+
+  /* S3 未设密码时点开关 → 引导设置密码（含长度校验 + 二次确认） */
+  click(pv4, pv4.document.getElementById('pwdSw'));
+  await sleep(60);
+  assert(pv4.document.getElementById('pwdMask').className.indexOf('open') >= 0, 'S3 未设密码点开关弹出设置键盘');
+  assert(pv4.document.getElementById('pwdTitle').textContent.indexOf('设置新密码') >= 0, 'S3 第一步：设置新密码');
+  typePwd(pv4, '12');
+  click(pv4, pv4.document.getElementById('pwdOk'));
+  await sleep(40);
+  assert(pv4.document.getElementById('pwdTip').textContent.indexOf('至少') >= 0, 'S3 密码太短被拦下');
+  typePwd(pv4, '1234');
+  click(pv4, pv4.document.getElementById('pwdOk'));
+  await sleep(140);
+  assert(pv4.document.getElementById('pwdTitle').textContent.indexOf('再输一次') >= 0, 'S3 第二步：再输一次');
+  typePwd(pv4, '5678');
+  click(pv4, pv4.document.getElementById('pwdOk'));
+  await sleep(40);
+  assert(pv4.document.getElementById('pwdTip').textContent.indexOf('不一致') >= 0, 'S3 两次不一致被拦下');
+  typePwd(pv4, '1234');
+  click(pv4, pv4.document.getElementById('pwdOk'));
+  await sleep(140);
+  assert(pv4.localStorage.getItem('g34_class4_pwd') === '1234', 'S3 密码写入 localStorage');
+  assert(pv4.localStorage.getItem('g34_class4_pwdOn') === '1', 'S3 首次设置密码自动开启密码锁');
+  assert(pv4.document.getElementById('pwdSw').className.indexOf('on') >= 0, 'S3 开关回显为开启');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });

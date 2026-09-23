@@ -114,6 +114,42 @@ button{font-family:inherit;cursor:pointer;outline:none;}
 .htitem.on{font-weight:bold;border-width:2px;padding:6px 2px;}
 .httag{font-size:10px;opacity:0.55;margin-left:3px;}
 
+/* ============ 设置面板分类（主题 / 文字 / 隐私） ============ */
+.setseg{padding:2px 10px 6px 10px;}
+.setpane{display:none;}
+.setpane.on{display:block;}
+/* 含按钮的设置行：左侧文字，右侧操作，老内核不用 flex */
+.setrow{padding:8px 10px;border-top:1px solid rgba(128,128,128,0.18);}
+.setrow .sr-txt{display:block;font-size:12px;opacity:0.85;}
+.setrow .sr-desc{display:block;font-size:10px;opacity:0.55;margin-top:2px;line-height:1.5;}
+.setrow .sr-act{text-align:right;padding-top:6px;font-size:0;}
+.setrow .sr-act .theme-btn{float:none;display:inline-block;margin-left:8px;font-size:12px;padding:5px 12px;}
+
+/* ============ 内置密码键盘（不依赖系统输入法，避免老设备 IME 组合态问题） ============ */
+.pwd-dialog{width:300px;margin-left:-150px;margin-top:-170px;}
+.pwddots{text-align:center;padding:10px 0 6px 0;font-size:0;}
+.pwddots i{
+  display:inline-block;width:12px;height:12px;margin:0 6px;
+  -webkit-border-radius:50%;border-radius:50%;
+  border:1px solid rgba(128,128,128,0.5);background:transparent;
+}
+.pwddots i.on{background:currentColor;}
+.pwdpad{padding:8px 10px 2px 10px;font-size:0;text-align:center;}
+.pwdkey{
+  display:inline-block;width:30%;margin:0 2.5% 7px 0;
+  padding:11px 0;font-size:18px;line-height:1;
+  -webkit-border-radius:8px;border-radius:8px;
+  border:1px solid rgba(128,128,128,0.35);background:transparent;color:inherit;
+  cursor:pointer;-webkit-tap-highlight-color:transparent;
+}
+.pwdkey:nth-child(3n){margin-right:0;}
+.pwdkey:active{opacity:0.6;}
+.pwdkey.wide{width:63%;font-size:13px;}
+.pwd-err{color:#e0568f;opacity:1;}
+/* 管理模式下被隐藏的应用：半透明 + 「已隐藏」角标 */
+.aitem.ahidden{opacity:0.45;}
+.aitem .hflag{float:right;font-size:10px;opacity:0.6;margin-left:6px;}
+
 /* ============ 主题切换过渡动画 ============ */
 /* 1) 关键元素平滑渐变（纯色属性；渐变背景 background-image 无法过渡，由扫过遮罩弥补） */
 body,.topbar,.theme-btn,.apps-btn,.panel,.pitem,.aitem,.aitem .aicon,.card,.title,.subtitle,.clock-time,.clock-date,
@@ -1261,33 +1297,72 @@ var CLASS_CITY_LON  = 87.614;
 
 <div class="topbar">
   <div class="brand">高三4班</div>
-  <button id="themeBtn" class="theme-btn" type="button"><span class="dot"></span>主题</button>
+  <button id="themeBtn" class="theme-btn" type="button"><span class="dot"></span>设置</button>
   <div class="clearfix"></div>
   <div id="panel" class="panel">
-    <div class="ptitle">选择主题</div>
-    <div id="plist"></div>
-    <div class="prow">
-      <div class="prow-txt">
-        <span class="pname">自定义文字</span>
-        <span class="pdesc">改完自动保存，即时生效</span>
-      </div>
-      <div class="clearfix"></div>
-      <label class="ed-row"><span class="ed-lb">中央标题</span><input type="text" id="edTitle" class="ed-in" maxlength="20" placeholder="如：欢迎来到高三4班"></label>
-      <label class="ed-row"><span class="ed-lb">左上角班级</span><input type="text" id="edBrand" class="ed-in" maxlength="12" placeholder="如：高三4班"></label>
-      <div class="clearfix"></div>
+    <div class="ptitle">设置</div>
+    <div class="seg setseg" id="setSeg">
+      <button type="button" class="seg-b on" data-pane="theme">主题</button><button type="button" class="seg-b" data-pane="text">文字</button><button type="button" class="seg-b" data-pane="priv">隐私</button>
     </div>
-    <div class="prow">
-      <div class="prow-txt">
-        <span class="pname">自动换主题</span>
-        <span class="pdesc">随机切换到另一套主题</span>
+
+    <!-- 分类一：主题 -->
+    <div class="setpane on" id="paneTheme">
+      <div id="plist"></div>
+      <div class="prow">
+        <div class="prow-txt">
+          <span class="pname">自动换主题</span>
+          <span class="pdesc">随机切换到另一套主题</span>
+        </div>
+        <button type="button" class="switch" id="autoSw"><i></i></button>
+        <div class="clearfix"></div>
+        <div class="ed-row"><span class="ed-lb">切换间隔</span></div>
+        <div class="seg" id="segAuto">
+          <button type="button" class="seg-b" data-sec="30">30 秒</button><button type="button" class="seg-b" data-sec="90">90 秒</button><button type="button" class="seg-b" data-sec="180">180 秒</button>
+        </div>
+        <div class="clearfix"></div>
       </div>
-      <button type="button" class="switch" id="autoSw"><i></i></button>
-      <div class="clearfix"></div>
-      <div class="ed-row"><span class="ed-lb">切换间隔</span></div>
-      <div class="seg" id="segAuto">
-        <button type="button" class="seg-b" data-sec="30">30 秒</button><button type="button" class="seg-b" data-sec="90">90 秒</button><button type="button" class="seg-b" data-sec="180">180 秒</button>
+    </div>
+
+    <!-- 分类二：文字 -->
+    <div class="setpane" id="paneText">
+      <div class="prow">
+        <div class="prow-txt">
+          <span class="pname">自定义文字</span>
+          <span class="pdesc">改完自动保存，即时生效</span>
+        </div>
+        <div class="clearfix"></div>
+        <label class="ed-row"><span class="ed-lb">中央标题</span><input type="text" id="edTitle" class="ed-in" maxlength="20" placeholder="如：欢迎来到高三4班"></label>
+        <label class="ed-row"><span class="ed-lb">左上角班级</span><input type="text" id="edBrand" class="ed-in" maxlength="12" placeholder="如：高三4班"></label>
+        <div class="clearfix"></div>
       </div>
-      <div class="clearfix"></div>
+    </div>
+
+    <!-- 分类三：隐私 -->
+    <div class="setpane" id="panePriv">
+      <div class="prow">
+        <div class="prow-txt">
+          <span class="pname">密码锁</span>
+          <span class="pdesc" id="pwdStateTxt">开启后需密码才能显示隐藏的应用</span>
+        </div>
+        <button type="button" class="switch" id="pwdSw"><i></i></button>
+        <div class="clearfix"></div>
+      </div>
+      <div class="setrow">
+        <span class="sr-txt">修改密码</span>
+        <span class="sr-desc">4~8 位数字，用于查看被隐藏的应用</span>
+        <div class="sr-act">
+          <button type="button" class="theme-btn" id="pwdChangeBtn">修改</button>
+        </div>
+      </div>
+      <div class="setrow">
+        <span class="sr-txt">已隐藏应用</span>
+        <span class="sr-desc" id="hideCntTxt">当前没有隐藏的应用</span>
+        <div class="sr-act">
+          <button type="button" class="theme-btn" id="hideManageBtn">管理</button>
+          <button type="button" class="theme-btn" id="hideClearBtn">全部恢复</button>
+        </div>
+      </div>
+      <div class="wxtip">提示：长按应用列表里的应用可隐藏它；长按右下角 ▦ 按钮并输入密码，即可显示被隐藏的应用。</div>
     </div>
   </div>
 </div>
@@ -1295,7 +1370,7 @@ var CLASS_CITY_LON  = 87.614;
 <!-- 右下角启动器：App 内由原生桥列出/打开应用；浏览器直接打开时按钮自动隐藏 -->
 <button id="appsBtn" class="apps-btn" type="button" title="应用列表">▦</button>
 <div id="appsPanel" class="panel apps-panel">
-  <div class="ptitle">应用列表</div>
+  <div class="ptitle" id="appsTitle">应用列表</div>
   <div id="applist"></div>
 </div>
 
@@ -1321,6 +1396,37 @@ var CLASS_CITY_LON  = 87.614;
     <div class="wxtip">长按一言卡片可随时更换；选「全部随机」则不限制类型</div>
     <div class="wxbtns">
       <button type="button" id="hitoNo" class="theme-btn">关闭</button>
+    </div>
+  </div>
+</div>
+
+<!-- 通用确认弹层：隐藏/恢复应用前二次确认 -->
+<div id="askMask" class="wxmask">
+  <div id="askDialog" class="panel wx-dialog">
+    <div class="ptitle" id="askTitle">提示</div>
+    <div class="wxtip" id="askText" style="font-size:13px;opacity:0.85;padding:8px 10px;"></div>
+    <div class="wxbtns">
+      <button type="button" id="askNo" class="theme-btn">取消</button>
+      <button type="button" id="askOk" class="theme-btn">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 内置密码键盘：自带数字键盘，不唤起系统输入法（老设备 IME 组合态会吞字） -->
+<div id="pwdMask" class="wxmask">
+  <div id="pwdDialog" class="panel wx-dialog pwd-dialog">
+    <div class="ptitle" id="pwdTitle">输入密码</div>
+    <div id="pwdDots" class="pwddots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div id="pwdTip" class="wxtip" style="text-align:center;min-height:16px;"></div>
+    <div id="pwdPad" class="pwdpad">
+      <button type="button" class="pwdkey" data-k="1">1</button><button type="button" class="pwdkey" data-k="2">2</button><button type="button" class="pwdkey" data-k="3">3</button>
+      <button type="button" class="pwdkey" data-k="4">4</button><button type="button" class="pwdkey" data-k="5">5</button><button type="button" class="pwdkey" data-k="6">6</button>
+      <button type="button" class="pwdkey" data-k="7">7</button><button type="button" class="pwdkey" data-k="8">8</button><button type="button" class="pwdkey" data-k="9">9</button>
+      <button type="button" class="pwdkey" data-k="c">清空</button><button type="button" class="pwdkey" data-k="0">0</button><button type="button" class="pwdkey" data-k="d">删除</button>
+    </div>
+    <div class="wxbtns">
+      <button type="button" id="pwdNo" class="theme-btn">取消</button>
+      <button type="button" id="pwdOk" class="theme-btn">确定</button>
     </div>
   </div>
 </div>
@@ -1489,6 +1595,7 @@ var CLASS_CITY_LON  = 87.614;
     p.style.webkitOverflowScrolling = 'touch';
     p.className = 'panel open';
     panelOpen = true;
+    refreshPrivUi(); /* 每次打开同步一次隐私状态（隐藏数量可能已变） */
   }
   function closePanel() { $('panel').className = 'panel'; panelOpen = false; }
 
@@ -1529,7 +1636,11 @@ var CLASS_CITY_LON  = 87.614;
     p.onscroll = markScroll; /* 惯性滚动刚停下的一瞬最容易误触，滚动页码记时间戳 */
     loadApps(); /* 每次打开都取：失败不缓存，重开自动重试 */
   }
-  function closeApps() { $('appsPanel').className = 'panel apps-panel'; appsOpen = false; }
+  function closeApps() {
+    $('appsPanel').className = 'panel apps-panel';
+    appsOpen = false;
+    exitManage(); /* 关掉列表就退出管理模式，隐藏项不会长期裸露 */
+  }
 
   /* ---------- 触屏 tap 判定：把「点一下」与「滚动/甩动」分开 ----------
       【v2 修订】第一版靠 touchmove 位移判定，实机仍然误开——原因是一旦浏览器
@@ -1545,6 +1656,7 @@ var CLASS_CITY_LON  = 87.614;
   var TAP_MAX_MS = 300;     /* 点按最长 300ms，超时视为滚动/犹疑，不启动 */
   var TAP_DELAY_MS = 140;   /* 判定后延迟执行，留出让滚动信号到达的窗口 */
   var SCROLL_LOCK_MS = 350; /* 滚动停下后的静默期，期间忽略点击 */
+  var LONG_MS = 600;        /* 长按阈值：与点按共用一套状态机，互不打架 */
   var lastScrollAt = 0;
   var pendingTap = null;    /* 待执行的 tap，任何滚动都会撤销它 */
 
@@ -1565,23 +1677,40 @@ var CLASS_CITY_LON  = 87.614;
     return null;
   }
 
-  function bindTap(el, fn) {
+  /* bindTap(el, fn, longFn)
+     fn     —— 轻点（点按：位移小、时长 <300ms、期间没滚动）
+     longFn —— 长按 600ms（可选）。长按一旦触发，抬手时不再走轻点。
+     两者共用同一套防误触判据：滚动/甩动/惯性停手都不会误触发任何一个。
+     桌面（无 touch）环境用 mousedown/mouseup 也支持长按。 */
+  function bindTap(el, fn, longFn) {
     var sx = 0, sy = 0, st = 0, moved = false, touched = false, resetTimer = null;
     var panel = null, scrollTop0 = 0;
+    var longTimer = null, longFired = false;
     function touchOf(e) { return (e && e.touches && e.touches[0]) || (e && e.changedTouches && e.changedTouches[0]) || null; }
     function scheduleReset() {
       if (resetTimer) { clearTimeout(resetTimer); }
       resetTimer = setTimeout(function () { touched = false; }, 400);
     }
+    function clearLong() {
+      if (longTimer) { clearTimeout(longTimer); longTimer = null; }
+    }
+    function fireLong() {
+      longTimer = null;
+      longFired = true;
+      el.className = el.className.replace(/ aitem-on/g, '');
+      clearPendingTap();
+      if (longFn) { longFn(el); }
+    }
     function onStart(e) {
       var t = touchOf(e);
       clearPendingTap();              /* 新手势一来，撤销上一次待执行的点击 */
       if (!t) { return; }             /* 鼠标环境不接管，交给下面的 click */
-      touched = true; moved = false;
+      touched = true; moved = false; longFired = false;
       sx = t.clientX; sy = t.clientY; st = (new Date()).getTime();
       panel = scrollParent(el);
       scrollTop0 = panel ? panel.scrollTop : 0;
       el.className = el.className + (el.className.indexOf(' aitem-on') >= 0 ? '' : ' aitem-on');
+      if (longFn) { clearLong(); longTimer = setTimeout(fireLong, LONG_MS); }
     }
     function onMove(e) {
       var t = touchOf(e);
@@ -1591,10 +1720,13 @@ var CLASS_CITY_LON  = 87.614;
         el.className = el.className.replace(/ aitem-on/g, '');
       }
       /* 位移中就开始的滚动可能还没反映到 scrollTop，此处的移动也撤销待执行 */
-      if (moved) { clearPendingTap(); }
+      if (moved) { clearPendingTap(); clearLong(); }
+      if (panel && panel.scrollTop !== scrollTop0) { clearLong(); }
     }
     function onEnd(e) {
       el.className = el.className.replace(/ aitem-on/g, '');
+      clearLong();
+      if (longFired) { longFired = false; return; } /* 长按已触发，不再当点击 */
       if (!touched) { return; }
       scheduleReset();
       clearPendingTap();
@@ -1614,27 +1746,215 @@ var CLASS_CITY_LON  = 87.614;
     el.addEventListener('touchmove', onMove, false);
     el.addEventListener('touchend', onEnd, false);
     el.addEventListener('touchcancel', function (e) {
-      moved = true; touched = false; clearPendingTap();
+      moved = true; touched = false; clearPendingTap(); clearLong();
       el.className = el.className.replace(/ aitem-on/g, '');
       if (e && e.stopPropagation) { e.stopPropagation(); }
     }, false);
+    /* 桌面/无 touch 环境的长按：mousedown 起计时，松开或移出即取消 */
+    if (longFn) {
+      el.addEventListener('mousedown', function () {
+        clearLong(); longFired = false;
+        longTimer = setTimeout(fireLong, LONG_MS);
+      }, false);
+      el.addEventListener('mouseup', function () { clearLong(); }, false);
+      el.addEventListener('mouseleave', function () { clearLong(); }, false);
+    }
     /* 鼠标 / 无 touch 环境的兜底：已被 touch 处理过则跳过，避免双触发 */
     el.onclick = function (e) {
       if (e && e.stopPropagation) { e.stopPropagation(); }
+      if (longFired) { longFired = false; return; }
       if (touched) { return; }
       fn(el);
     };
   }
 
+  /* ---------- 隐私：隐藏应用 + 密码锁 ----------
+     隐藏：长按列表项 → 二次确认 → 包名写入 localStorage，普通模式不再显示；
+     查看：长按右下角 ▦ 按钮 → 内置密码键盘校验 → 进入管理模式（列表显示隐藏项，可恢复）；
+     密码：4~8 位数字，在「设置 → 隐私」里开关 / 修改。密码关闭时无需验证即可查看。 */
+  var HIDE_KEY = 'g34_class4_hidden';
+  var PWD_KEY = 'g34_class4_pwd';
+  var PWD_ON_KEY = 'g34_class4_pwdOn';
+  var PWD_MIN = 4, PWD_MAX = 8;
+  var appsManage = false; /* 管理模式：显示被隐藏的应用，可恢复 */
+
+  function readHidden() {
+    var raw = readStore(HIDE_KEY);
+    if (!raw) { return []; }
+    try {
+      var a = JSON.parse(raw);
+      return (a && a.length) ? a : [];
+    } catch (e) { return []; }
+  }
+  function writeHidden(a) { writeStore(HIDE_KEY, JSON.stringify(a || [])); }
+  function isHidden(pkg) {
+    var a = readHidden(), i;
+    for (i = 0; i < a.length; i++) { if (a[i] === pkg) { return true; } }
+    return false;
+  }
+  function setHidden(pkg, on) {
+    var a = readHidden(), out = [], i;
+    for (i = 0; i < a.length; i++) { if (a[i] !== pkg) { out.push(a[i]); } }
+    if (on) { out.push(pkg); }
+    writeHidden(out);
+    refreshPrivUi();
+  }
+  function hiddenCount() { return readHidden().length; }
+
+  function getPwd() { return readStore(PWD_KEY) || ''; }
+  function setPwd(v) { writeStore(PWD_KEY, v); }
+  function pwdOn() { return readStore(PWD_ON_KEY) === '1'; }
+  function setPwdOn(on) { writeStore(PWD_ON_KEY, on ? '1' : '0'); refreshPrivUi(); }
+
+  /* 通用二次确认弹层（隐藏/恢复/清空 都走它） */
+  var askCb = null;
+  function askConfirm(title, text, okText, cb) {
+    askCb = cb;
+    var t = $('askTitle'), x = $('askText'), ok = $('askOk');
+    if (t) { t.textContent = title; }
+    if (x) { x.textContent = text; }
+    if (ok) { ok.textContent = okText || '确定'; }
+    $('askMask').className = 'wxmask open';
+  }
+  function closeAsk() { $('askMask').className = 'wxmask'; askCb = null; }
+
+  /* 轻量提示条：ES5 + inline transition，老内核可用 */
+  var toastEl = null, toastTimer = null;
+  function toast(msg) {
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.style.position = 'fixed';
+      toastEl.style.left = '50%';
+      toastEl.style.bottom = '92px';
+      toastEl.style.zIndex = '1700';
+      toastEl.style.padding = '9px 16px';
+      toastEl.style.borderRadius = '18px';
+      toastEl.style.background = 'rgba(0,0,0,0.75)';
+      toastEl.style.color = '#fff';
+      toastEl.style.fontSize = '13px';
+      toastEl.style.opacity = '0';
+      toastEl.style.pointerEvents = 'none';
+      toastEl.style.webkitTransition = 'opacity .25s ease';
+      toastEl.style.transition = 'opacity .25s ease';
+      document.body.appendChild(toastEl);
+    }
+    toastEl.textContent = msg;
+    toastEl.style.opacity = '1';
+    if (toastTimer) { clearTimeout(toastTimer); }
+    toastTimer = setTimeout(function () { toastEl.style.opacity = '0'; }, 1800);
+  }
+
+  /* 内置密码键盘：自带 0-9 数字键盘，不唤起系统输入法
+     （老设备 IME 组合态会吞字符，且密码框不该走输入法） */
+  var pwdBuf = '', pwdValidate = null, pwdAfter = null, pwdNewVal = '';
+  function pwdTip(msg, isErr) {
+    var el = $('pwdTip');
+    if (!el) { return; }
+    el.innerHTML = '';
+    el.textContent = msg || '';
+    el.style.textAlign = 'center';
+    el.className = 'wxtip' + (isErr ? ' pwd-err' : '');
+  }
+  function pwdDots() {
+    var box = $('pwdDots');
+    if (!box) { return; }
+    var ds = box.getElementsByTagName('i'), i;
+    for (i = 0; i < ds.length; i++) { ds[i].className = (i < pwdBuf.length) ? 'on' : ''; }
+  }
+  function pwdPrompt(title, validate, after) {
+    pwdBuf = ''; pwdValidate = validate || null; pwdAfter = after || null;
+    var t = $('pwdTitle');
+    if (t) { t.textContent = title; }
+    pwdTip('', false);
+    pwdDots();
+    $('pwdMask').className = 'wxmask open';
+  }
+  function closePwd() {
+    $('pwdMask').className = 'wxmask';
+    pwdBuf = ''; pwdValidate = null; pwdAfter = null;
+  }
+  function pwdKey(k) {
+    if (k === 'c') { pwdBuf = ''; }
+    else if (k === 'd') { pwdBuf = pwdBuf.slice(0, pwdBuf.length - 1); }
+    else if (pwdBuf.length < PWD_MAX) { pwdBuf += k; }
+    pwdDots();
+    pwdTip('', false);
+  }
+  function pwdSubmit() {
+    if (!pwdBuf.length) { pwdTip('请输入密码', true); return; }
+    var err = pwdValidate ? pwdValidate(pwdBuf) : null;
+    if (err) { pwdBuf = ''; pwdDots(); pwdTip(err, true); return; }
+    var after = pwdAfter;
+    closePwd();                       /* 先关当前层，再开下一层，避免叠层 */
+    if (after) { setTimeout(after, 60); }
+  }
+  function pwdChangeFlow() {
+    if (pwdOn() && getPwd()) {
+      pwdPrompt('输入当前密码', function (v) { return (v === getPwd()) ? null : '密码不对，再试试'; },
+        function () { setTimeout(pwdStepNew, 60); });
+    } else {
+      pwdStepNew();
+    }
+  }
+  function pwdStepNew() {
+    pwdPrompt('设置新密码（' + PWD_MIN + '~' + PWD_MAX + ' 位数字）', function (v) {
+      if (v.length < PWD_MIN) { return '至少 ' + PWD_MIN + ' 位数字'; }
+      pwdNewVal = v;
+      return null;
+    }, function () { setTimeout(pwdStepNew2, 60); });
+  }
+  function pwdStepNew2() {
+    pwdPrompt('再输一次新密码', function (v) { return (v === pwdNewVal) ? null : '两次不一致，请重新设置'; },
+      function () {
+        setPwd(pwdNewVal);
+        if (!pwdOn()) { setPwdOn(true); }  /* 首次设置密码顺手开启密码锁 */
+        else { refreshPrivUi(); }
+        toast('密码已保存');
+      });
+  }
+
+  /* 请求进入管理模式：密码开启且有密码时需校验 */
+  function requestManage() {
+    if (pwdOn() && getPwd()) {
+      pwdPrompt('输入密码以显示隐藏应用', function (v) { return (v === getPwd()) ? null : '密码不对，再试试'; },
+        function () { enterManage(); });
+    } else {
+      enterManage();
+    }
+  }
+  function enterManage() {
+    appsManage = true;
+    var t = $('appsTitle');
+    if (t) { t.textContent = '应用列表 · 管理'; }
+    if (!appsOpen) { openApps(); } else { loadApps(); }
+  }
+  function exitManage() {
+    appsManage = false;
+    var t = $('appsTitle');
+    if (t) { t.textContent = '应用列表'; }
+  }
+
   function renderApps(data) {
     var box = $('applist');
-    var html = '', i;
+    var html = '', i, n = 0;
     var PLACEHOLDER = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
     for (i = 0; i < data.length; i++) {
-      html += '<button type="button" class="pitem aitem" data-pkg="' + escHtml(data[i].pkg) + '">' +
+      var pkg = data[i].pkg || '', nm = data[i].name || pkg;
+      var hid = isHidden(pkg);
+      if (hid && !appsManage) { continue; } /* 普通模式不显示被隐藏的应用 */
+      n++;
+      html += '<button type="button" class="pitem aitem' + (hid ? ' ahidden' : '') + '"' +
+                ' data-pkg="' + escHtml(pkg) + '" data-name="' + escHtml(nm) + '">' +
                 '<img class="aicon" src="' + (data[i].icon || PLACEHOLDER) + '" alt="">' +
-                '<span class="aname">' + escHtml(data[i].name) + '</span>' +
+                '<span class="aname">' + escHtml(nm) + '</span>' +
+                (hid ? '<span class="hflag">已隐藏</span>' : '') +
               '</button>';
+    }
+    if (!n) {
+      box.innerHTML = '<div class="apps-empty">' +
+        (appsManage ? '没有应用，也没有被隐藏的应用' : '所有应用都被隐藏了，长按右下角 ▦ 输入密码可管理') +
+        '</div>';
+      return;
     }
     box.innerHTML = html;
     var btns = box.getElementsByTagName('button');
@@ -1643,8 +1963,25 @@ var CLASS_CITY_LON  = 87.614;
         bindTap(btn, function () {
           closeApps();
           appsLaunch(btn.getAttribute('data-pkg'));
-        });
+        }, function () { askHideToggle(btn); });
       })(btns[i]);
+    }
+  }
+
+  /* 长按列表项：隐藏 / 恢复，都先二次确认 */
+  function askHideToggle(btn) {
+    var pkg = btn.getAttribute('data-pkg') || '';
+    var nm = btn.getAttribute('data-name') || pkg;
+    if (isHidden(pkg)) {
+      askConfirm('恢复应用', '把「' + nm + '」放回应用列表？', '恢复', function () {
+        setHidden(pkg, false);
+        loadApps();
+      });
+    } else {
+      askConfirm('隐藏应用', '隐藏「' + nm + '」？隐藏后需长按右下角 ▦ 按钮并输入密码才能显示。', '隐藏', function () {
+        setHidden(pkg, true);
+        loadApps();
+      });
     }
   }
 
@@ -1674,10 +2011,32 @@ var CLASS_CITY_LON  = 87.614;
     if (!btn) { return; }
     function show() {
       btn.style.display = '';
+      /* 长按 ▦ 进入管理模式（密码开启时需先验证） */
+      var pressT = null, btnLong = false;
+      function pressStart() {
+        if (pressT) { clearTimeout(pressT); }
+        btnLong = false;
+        pressT = setTimeout(function () {
+          pressT = null;
+          btnLong = true;
+          requestManage();
+        }, LONG_MS);
+      }
+      function pressCancel() { if (pressT) { clearTimeout(pressT); pressT = null; } }
+      if (btn.addEventListener) {
+        btn.addEventListener('touchstart', pressStart, false);
+        btn.addEventListener('touchmove', pressCancel, false);
+        btn.addEventListener('touchend', pressCancel, false);
+        btn.addEventListener('touchcancel', pressCancel, false);
+        btn.addEventListener('mousedown', pressStart, false);
+        btn.addEventListener('mouseup', pressCancel, false);
+        btn.addEventListener('mouseleave', pressCancel, false);
+      }
       btn.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        if (btnLong) { btnLong = false; return; } /* 长按已处理，不再开合列表 */
         fxAt(btn, e, 8);
         if (appsOpen) { closeApps(); } else { openApps(); }
-        if (e && e.stopPropagation) { e.stopPropagation(); }
       };
       $('appsPanel').onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } };
     }
@@ -1780,12 +2139,130 @@ var CLASS_CITY_LON  = 87.614;
     }
   }
 
+  /* ---------- 设置面板：分类切换（主题 / 文字 / 隐私） ---------- */
+  var PANES = { theme: 'paneTheme', text: 'paneText', priv: 'panePriv' };
+  function setPane(name) {
+    var k, el, i;
+    for (k in PANES) {
+      if (!PANES.hasOwnProperty(k)) { continue; }
+      el = $(PANES[k]);
+      if (el) { el.className = 'setpane' + (k === name ? ' on' : ''); }
+    }
+    var seg = $('setSeg');
+    if (seg) {
+      var bs = seg.getElementsByTagName('button');
+      for (i = 0; i < bs.length; i++) {
+        bs[i].className = 'seg-b' + (bs[i].getAttribute('data-pane') === name ? ' on' : '');
+      }
+    }
+    /* 各分类高度不同，切完重设一次限高（面板本身可滚动） */
+    var p = $('panel');
+    var vh = window.innerHeight || document.documentElement.clientHeight;
+    if (p && vh) { p.style.maxHeight = Math.max(200, vh - 74) + 'px'; }
+    if (name === 'priv') { refreshPrivUi(); }
+  }
+  function initSetSeg() {
+    var seg = $('setSeg');
+    if (!seg) { return; }
+    var bs = seg.getElementsByTagName('button'), i;
+    for (i = 0; i < bs.length; i++) {
+      (function (b) {
+        b.onclick = function (e) {
+          if (e && e.stopPropagation) { e.stopPropagation(); }
+          setPane(b.getAttribute('data-pane'));
+        };
+      })(bs[i]);
+    }
+  }
+
+  /* ---------- 隐私分类：密码锁开关 / 改密码 / 隐藏应用 ---------- */
+  function refreshPrivUi() {
+    var sw = $('pwdSw'), st = $('pwdStateTxt'), cnt = $('hideCntTxt');
+    var on = pwdOn(), has = !!getPwd(), n = hiddenCount();
+    if (sw) { sw.className = 'switch' + (on ? ' on' : ''); }
+    if (st) {
+      st.textContent = !has ? '还没设置密码，设置后自动开启'
+        : (on ? '已开启：查看隐藏应用需要密码' : '已关闭：长按 ▦ 可直接查看');
+    }
+    if (cnt) { cnt.textContent = n ? ('已隐藏 ' + n + ' 个应用') : '当前没有隐藏的应用'; }
+  }
+  function initPriv() {
+    var sw = $('pwdSw'), ch = $('pwdChangeBtn'), mg = $('hideManageBtn'), cl = $('hideClearBtn');
+    if (sw) {
+      sw.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        if (!pwdOn() && !getPwd()) { toast('先设置一个密码吧'); pwdChangeFlow(); return; }
+        setPwdOn(!pwdOn());
+        toast(pwdOn() ? '密码锁已开启' : '密码锁已关闭');
+      };
+    }
+    if (ch) { ch.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } pwdChangeFlow(); }; }
+    if (mg) {
+      mg.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        closePanel();
+        requestManage();
+      };
+    }
+    if (cl) {
+      cl.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        var n = hiddenCount();
+        if (!n) { toast('没有隐藏的应用'); return; }
+        askConfirm('恢复全部', '把隐藏的 ' + n + ' 个应用全部恢复显示？', '全部恢复', function () {
+          writeHidden([]);
+          refreshPrivUi();
+          if (appsOpen) { loadApps(); }
+          toast('已全部恢复');
+        });
+      };
+    }
+    refreshPrivUi();
+  }
+
+  /* ---------- 弹层事件：二次确认 / 内置密码键盘 ---------- */
+  function initDialogs() {
+    var askMask = $('askMask'), askDlg = $('askDialog'), askOk = $('askOk'), askNo = $('askNo');
+    if (askOk) {
+      askOk.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        var cb = askCb;
+        closeAsk();
+        if (cb) { cb(); } /* 先关层再执行，避免回调里再弹层时叠在一起 */
+      };
+    }
+    if (askNo) { askNo.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } closeAsk(); }; }
+    if (askDlg) { askDlg.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } }; }
+    if (askMask) { askMask.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } closeAsk(); }; }
+
+    var pad = $('pwdPad');
+    if (pad) {
+      var ks = pad.getElementsByTagName('button'), i;
+      for (i = 0; i < ks.length; i++) {
+        (function (b) {
+          b.onclick = function (e) {
+            if (e && e.stopPropagation) { e.stopPropagation(); }
+            pwdKey(b.getAttribute('data-k'));
+          };
+        })(ks[i]);
+      }
+    }
+    var pOk = $('pwdOk'), pNo = $('pwdNo'), pwdMask = $('pwdMask'), pwdDlg = $('pwdDialog');
+    if (pOk) { pOk.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } pwdSubmit(); }; }
+    if (pNo) { pNo.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } closePwd(); }; }
+    if (pwdDlg) { pwdDlg.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } }; }
+    if (pwdMask) { pwdMask.onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } closePwd(); }; }
+  }
+
   $('themeBtn').onclick = function (e) {
     if (panelOpen) { closePanel(); } else { openPanel(); }
     if (e && e.stopPropagation) { e.stopPropagation(); }
   };
   $('panel').onclick = function (e) { if (e && e.stopPropagation) { e.stopPropagation(); } };
   initAppsBtn();
+  initSetSeg();
+  initPriv();
+  initDialogs();
   document.onclick = function (e) {
     if (panelOpen) { closePanel(); }
     if (appsOpen) { closeApps(); }
