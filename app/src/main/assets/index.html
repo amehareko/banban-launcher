@@ -1818,11 +1818,19 @@ var CLASS_CITY_LON  = 87.614;
   }
   function closeAsk() { $('askMask').className = 'wxmask'; askCb = null; }
 
-  /* 轻量提示条：ES5 + inline transition，老内核可用 */
-  var toastEl = null, toastTimer = null;
-  function toast(msg) {
+  /* 轻量提示条：ES5 + inline transition，老内核可用。
+     toast(msg)              —— 只显示文字
+     toast(msg, '撤销', fn)  —— 带一个操作按钮，点一下就执行并收起（用来兜住误操作） */
+  var toastEl = null, toastMsgEl = null, toastActEl = null, toastTimer = null, toastFn = null;
+  function hideToast() {
+    if (toastTimer) { clearTimeout(toastTimer); toastTimer = null; }
+    toastFn = null;
+    if (toastEl) { toastEl.style.opacity = '0'; }
+  }
+  function toast(msg, actText, actFn) {
     if (!toastEl) {
       toastEl = document.createElement('div');
+      toastEl.id = 'banbanToast';
       toastEl.style.position = 'fixed';
       toastEl.style.left = '50%';
       toastEl.style.bottom = '92px';
@@ -1836,12 +1844,41 @@ var CLASS_CITY_LON  = 87.614;
       toastEl.style.pointerEvents = 'none';
       toastEl.style.webkitTransition = 'opacity .25s ease';
       toastEl.style.transition = 'opacity .25s ease';
+
+      toastMsgEl = document.createElement('span');
+      toastActEl = document.createElement('button');
+      toastActEl.type = 'button';
+      toastActEl.style.marginLeft = '12px';
+      toastActEl.style.padding = '3px 10px';
+      toastActEl.style.borderRadius = '12px';
+      toastActEl.style.border = '1px solid rgba(255,255,255,0.6)';
+      toastActEl.style.background = 'transparent';
+      toastActEl.style.color = '#fff';
+      toastActEl.style.fontSize = '12px';
+      toastActEl.style.cursor = 'pointer';
+      toastActEl.onclick = function (e) {
+        if (e && e.stopPropagation) { e.stopPropagation(); }
+        var f = toastFn;
+        hideToast();
+        if (f) { f(); }
+      };
+      toastEl.appendChild(toastMsgEl);
+      toastEl.appendChild(toastActEl);
       document.body.appendChild(toastEl);
     }
-    toastEl.textContent = msg;
+    toastMsgEl.textContent = msg;
+    toastFn = actFn || null;
+    if (actText && actFn) {
+      toastActEl.textContent = actText;
+      toastActEl.style.display = '';
+      toastEl.style.pointerEvents = 'auto'; /* 有按钮时才接收点击，否则别挡住页面 */
+    } else {
+      toastActEl.style.display = 'none';
+      toastEl.style.pointerEvents = 'none';
+    }
     toastEl.style.opacity = '1';
     if (toastTimer) { clearTimeout(toastTimer); }
-    toastTimer = setTimeout(function () { toastEl.style.opacity = '0'; }, 1800);
+    toastTimer = setTimeout(hideToast, actFn ? 5000 : 1800); /* 有操作就多留一会儿 */
   }
 
   /* 内置密码键盘：自带 0-9 数字键盘，不唤起系统输入法
@@ -2037,11 +2074,18 @@ var CLASS_CITY_LON  = 87.614;
       askConfirm('恢复应用', '把「' + nm + '」放回应用列表？', '恢复', function () {
         setHidden(pkg, false);
         loadApps();
+        toast('已恢复「' + nm + '」');
       });
     } else {
       askConfirm('隐藏应用', '隐藏「' + nm + '」？隐藏后需长按右下角 ▦ 按钮并输入密码才能显示。', '隐藏', function () {
         setHidden(pkg, true);
         loadApps();
+        /* 误隐藏的代价是学生再也找不到它，所以给 5 秒后悔药 */
+        toast('已隐藏「' + nm + '」', '撤销', function () {
+          setHidden(pkg, false);
+          if (appsOpen) { loadApps(); }
+          toast('已撤销');
+        });
       });
     }
   }

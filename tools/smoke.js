@@ -448,6 +448,26 @@ function boot(opts) {
   assert(wb.__banbanCloseTop() === true, 'B4 再按一次关掉应用列表');
   assert(wb.document.getElementById('appsPanel').className.indexOf('open') < 0, 'B4 应用列表已关');
 
+  /* ============ R 系列：隐藏后的撤销兜底 ============ */
+  const r0 = boot({ bridge: true });
+  const wr = r0.window;
+  click(wr, wr.document.getElementById('appsBtn'));
+  const pnR = wr.document.getElementById('appsPanel');
+  const itR = pnR.querySelectorAll('button.aitem')[0];
+  touch(wr, itR, 'touchstart', 100, 200);
+  await sleep(700);
+  click(wr, wr.document.getElementById('askOk'));
+  await sleep(60);
+  assert(hidList(wr).length === 1, 'R0 隐藏生效');
+  const toastBox = wr.document.getElementById('banbanToast');
+  assert(!!toastBox, 'R0 出现提示条');
+  const undoBtn = toastBox.getElementsByTagName('button')[0];
+  assert(!!undoBtn && undoBtn.textContent === '撤销', 'R0 提示条带「撤销」按钮');
+  click(wr, undoBtn);
+  await sleep(60);
+  assert(hidList(wr).length === 0, 'R0 撤销后隐藏列表清空');
+  assert(pnR.querySelectorAll('button.aitem').length === 2, 'R0 撤销后列表恢复 2 项');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });
