@@ -16,6 +16,8 @@
 |:---:|:---:|
 | ![主题菜单](docs/themesMenu.png) | ![倒数日](docs/countDownDates.png) |
 
+> 📔 版本记录见 [CHANGELOG.md](CHANGELOG.md)
+
 ## ✨ Features
 
 - 🎨 **11 套主题随心换** — Apple、科技、可爱、MD3、鎏金、水墨、赛博、极光、蒸汽波、像素、街机，还有「自动换装」模式定时轮换
