@@ -21,9 +21,12 @@ import org.xwalk.core.XWalkView;
 public class MainActivity extends Activity {
     private static final String PAGE_URL = "file:///android_asset/index.html";
     private static final String LAUNCH_SCHEME = "banbanx://launch?p=";
+    private static final String OVERLAY_SCHEME = "banbanx://overlay?on=";
 
     private XWalkView xWalkView;
     private AppBridge appBridge;
+    /* 页面当前是否有弹层（设置/应用列表/天气/一言/确认/密码） */
+    private boolean overlayOpen = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,6 +71,11 @@ public class MainActivity extends Activity {
                     appBridge.launch(Uri.decode(url.substring(LAUNCH_SCHEME.length())));
                     return true; /* 拦截，不真导航 */
                 }
+                /* 弹层开关状态：页面用 scheme 上报，返回键据此决定是关弹层还是无视 */
+                if (url != null && url.startsWith(OVERLAY_SCHEME)) {
+                    overlayOpen = "1".equals(url.substring(OVERLAY_SCHEME.length()));
+                    return true;
+                }
                 return super.shouldOverrideUrlLoading(view, url);
             }
         });
@@ -96,7 +104,18 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        /* kiosk：返回键不做任何事，防止误触退出 */
+        if (overlayOpen && xWalkView != null) {
+            /* 有弹层：让页面关掉最上面那层（密码 > 确认 > 一言 > 天气 > 设置 > 应用列表） */
+            overlayOpen = false;
+            xWalkView.evaluateJavascript(
+                    "(function(){try{return !!(window.__banbanCloseTop&&window.__banbanCloseTop());}catch(e){return false;}})()",
+                    new ValueCallback<String>() {
+                        @Override
+                        public void onReceiveValue(String value) { /* 忽略 */ }
+                    });
+            return;
+        }
+        /* kiosk：没有弹层时返回键不做任何事，防止误触退出 */
     }
 
     @Override

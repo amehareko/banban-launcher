@@ -431,6 +431,23 @@ function boot(opts) {
   assert(w5.localStorage.getItem('g34_class4_pwdOn') === '0', 'S4 密码锁同时关闭');
   assert(JSON.parse(w5.localStorage.getItem('g34_class4_hidden')).length === 1, 'S4 隐藏列表不受影响');
 
+  /* ============ B 系列：返回键关弹层 ============ */
+  const b1 = boot({ bridge: true });
+  const wb = b1.window;
+  assert(typeof wb.__banbanCloseTop === 'function', 'B0 页面提供 __banbanCloseTop');
+  assert(wb.__banbanCloseTop() === false, 'B1 没有弹层时返回 false');
+  click(wb, wb.document.getElementById('themeBtn'));
+  assert(wb.__banbanCloseTop() === true, 'B2 设置面板打开时返回键能关掉');
+  assert(wb.document.getElementById('panel').className.indexOf('open') < 0, 'B2 面板确已关闭');
+  click(wb, wb.document.getElementById('appsBtn'));
+  /* 打开密码层 + 应用列表两层，closeTop 应先关最上面的密码层 */
+  wb.document.getElementById('pwdMask').className = 'wxmask open';
+  assert(wb.__banbanCloseTop() === true, 'B3 有密码层时先关密码层');
+  assert(wb.document.getElementById('pwdMask').className.indexOf('open') < 0, 'B3 密码层已关');
+  assert(wb.document.getElementById('appsPanel').className.indexOf('open') >= 0, 'B3 应用列表仍开着（未被连带关闭）');
+  assert(wb.__banbanCloseTop() === true, 'B4 再按一次关掉应用列表');
+  assert(wb.document.getElementById('appsPanel').className.indexOf('open') < 0, 'B4 应用列表已关');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });

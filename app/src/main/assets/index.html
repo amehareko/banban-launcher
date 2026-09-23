@@ -1913,6 +1913,42 @@ var CLASS_CITY_LON  = 87.614;
       });
   }
 
+  /* ---------- 返回键治理：告诉原生"现在有没有弹层"，并提供关闭最上层的方法 ----------
+     班牌是 kiosk 常驻，返回键不该退出应用；有弹层时返回键应该先关掉弹层。
+     状态通过 banbanx://overlay?on=1|0 通知原生（scheme 通道在这台设备上实测可用）；
+     只在 App 内（file:// 且拿得到应用数据）才发，浏览器直接打开时完全静默。
+     状态变化由 tick 每 250ms 统一比对，不用在每个开关函数里埋点。 */
+  function isOpen(id) {
+    var el = $(id);
+    return !!(el && el.className.indexOf('open') >= 0);
+  }
+  function anyOverlay() {
+    return isOpen('pwdMask') || isOpen('askMask') || isOpen('hitoMask') ||
+           isOpen('wxMask') || !!panelOpen || !!appsOpen;
+  }
+  var overlayLast = null;
+  function notifyOverlay() {
+    var loc = '';
+    try { loc = '' + window.location.href; } catch (e) { return; }
+    /* 浏览器/dev 环境（http、无应用数据）不发声，免得触发未知协议导航 */
+    if (loc.indexOf('file:') !== 0 && loc.indexOf('content:') !== 0) { return; }
+    if (!appsAvailable()) { return; }
+    var on = anyOverlay();
+    if (on === overlayLast) { return; }
+    overlayLast = on;
+    try { window.location.href = 'banbanx://overlay?on=' + (on ? '1' : '0'); } catch (e2) {}
+  }
+  /* 供原生 onBackPressed 调用：关闭最上层，返回是否关掉了（按优先级：密码 > 确认 > 一言 > 天气 > 设置 > 应用） */
+  window.__banbanCloseTop = function () {
+    if (isOpen('pwdMask')) { closePwd(); return true; }
+    if (isOpen('askMask')) { closeAsk(); return true; }
+    if (isOpen('hitoMask')) { closeHitoTypes(); return true; }
+    if (isOpen('wxMask')) { closeWxEdit(); return true; }
+    if (panelOpen) { closePanel(); return true; }
+    if (appsOpen) { closeApps(); return true; }
+    return false;
+  };
+
   /* 通用长按绑定（给按钮这类不参与滚动的元素用）：
      长按触发后会吃掉紧随其后那一次 click，避免"长按 + 点击"双响 */
   function bindLongPress(el, ms, fn) {
@@ -2964,6 +3000,7 @@ var CLASS_CITY_LON  = 87.614;
 
   function tick() {
     var now = new Date();
+    notifyOverlay(); /* 弹层开关状态同步给原生（返回键关弹层用），每秒比对 4 次足够 */
     $('hh').innerHTML = pad(now.getHours());
     $('mm').innerHTML = pad(now.getMinutes());
     $('ss').innerHTML = pad(now.getSeconds());
