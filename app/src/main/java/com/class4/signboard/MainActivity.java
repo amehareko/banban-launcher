@@ -35,6 +35,7 @@ public class MainActivity extends Activity {
     private static final long OVERLAY_POLL_MS = 500;
     private Handler uiHandler = null;
     private Runnable overlayPoll = null;
+    private boolean overlayPolling = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -93,26 +94,56 @@ public class MainActivity extends Activity {
     }
 
     private void startOverlayPoll() {
-        uiHandler = new Handler(Looper.getMainLooper());
-        overlayPoll = new Runnable() {
-            @Override
-            public void run() {
-                if (xWalkView != null) {
-                    xWalkView.evaluateJavascript(
-                            "(function(){try{return !!(window.__banbanOverlay&&window.__banbanOverlay());}catch(e){return false;}})()",
-                            new ValueCallback<String>() {
-                                @Override
-                                public void onReceiveValue(String value) {
-                                    overlayOpen = (value != null && value.indexOf("true") >= 0);
-                                }
-                            });
+        if (uiHandler == null) { uiHandler = new Handler(Looper.getMainLooper()); }
+        if (overlayPoll == null) {
+            overlayPoll = new Runnable() {
+                @Override
+                public void run() {
+                    if (!overlayPolling) { return; }
+                    if (xWalkView != null) {
+                        xWalkView.evaluateJavascript(
+                                "(function(){try{return !!(window.__banbanOverlay&&window.__banbanOverlay());}catch(e){return false;}})()",
+                                new ValueCallback<String>() {
+                                    @Override
+                                    public void onReceiveValue(String value) {
+                                        overlayOpen = (value != null && value.indexOf("true") >= 0);
+                                    }
+                                });
+                    }
+                    if (uiHandler != null && overlayPoll != null) {
+                        uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
+                    }
                 }
-                if (uiHandler != null && overlayPoll != null) {
-                    uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
-                }
-            }
-        };
-        uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
+            };
+        }
+        if (!overlayPolling) {
+            overlayPolling = true;
+            uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
+        }
+    }
+
+    private void stopOverlayPoll() {
+        overlayPolling = false;
+        if (uiHandler != null && overlayPoll != null) { uiHandler.removeCallbacks(overlayPoll); }
+    }
+
+    @Override
+    protected void onPause() {
+        stopOverlayPoll(); /* 拉起别的应用后不必再空转查询 */
+        super.onPause();
+        if (xWalkView != null) { xWalkView.pauseTimers(); }
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        resumeOverlayPollIfNeeded();
+        if (xWalkView != null) { xWalkView.resumeTimers(); }
+        hideSystemUi();
+    }
+
+    private void resumeOverlayPollIfNeeded() {
+        if (xWalkView != null) { startOverlayPoll(); }
     }
 
     private void hideSystemUi() {
@@ -152,7 +183,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
-        if (uiHandler != null && overlayPoll != null) { uiHandler.removeCallbacks(overlayPoll); }
+        stopOverlayPoll();
         uiHandler = null;
         overlayPoll = null;
         if (xWalkView != null) {
