@@ -1816,9 +1816,15 @@ var CLASS_CITY_LON  = 87.614;
 
   /* 应用被卸载后，它的包名会永远赖在隐藏列表里：计数不减、也点不到，
      只能靠"全部恢复"清掉。每次拿到真实应用列表时顺手把这些幽灵项清理掉。 */
+  var appsCountRef = 0; /* 见过的最大应用数：用来判断这次拿到的列表是不是完整的 */
   function pruneHidden(data) {
+    if (!data || !data.length) { return; }
+    /* 先更新基准：比见过的最大列表还短 = 这次数据不全（原生还没准备好 / 只给了部分），
+       此时清理会把仍然装着的隐藏应用误判成"已卸载" —— 宁可不清理。 */
+    var complete = (data.length >= appsCountRef);
+    if (complete) { appsCountRef = data.length; }
     var a = readHidden();
-    if (!a.length || !data || !data.length) { return; }
+    if (!a.length || !complete) { return; }
     var out = [], i, j, alive;
     for (i = 0; i < a.length; i++) {
       alive = false;

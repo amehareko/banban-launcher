@@ -548,6 +548,21 @@ function boot(opts) {
     'G1 已卸载的包名被清理: ' + JSON.stringify(left1));
   assert(wg1.document.getElementById('hideCntTxt').textContent.indexOf('1') >= 0, 'G1 计数同步更新');
 
+  /* G2 列表变短（原生数据不全）时绝不能把还装着的隐藏应用误清掉 */
+  const g2 = boot({ bridge: true });
+  const wg2 = g2.window;
+  const btnG2 = wg2.document.getElementById('appsBtn');
+  click(wg2, btnG2);                 /* 第一次打开：建立"完整列表"基准（2 个应用） */
+  await sleep(50);
+  click(wg2, btnG2);                 /* 关掉 */
+  await sleep(30);
+  wg2.localStorage.setItem('g34_class4_hidden', '["com.calc"]');
+  wg2.BanbanApp.getApps = () => JSON.stringify([{ name: '设置', pkg: 'com.android.settings', icon: '' }]);
+  click(wg2, btnG2);                 /* 再打开：这次只拿到 1 个应用 */
+  await sleep(50);
+  assert(JSON.parse(wg2.localStorage.getItem('g34_class4_hidden')).length === 1,
+    'G2 列表变短时不清隐藏项（避免误判为已卸载）');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });
