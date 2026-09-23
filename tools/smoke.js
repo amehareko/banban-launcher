@@ -52,6 +52,18 @@ function boot(opts) {
     pretendToBeVisual: true,
     virtualConsole: vc,
     beforeParse(window) {
+      if (opts.badStorage) {
+        /* 模拟存储写不进去（空间满 / DOM storage 被关）：读正常、写必抛 */
+        const mem = {};
+        Object.defineProperty(window, 'localStorage', {
+          configurable: true,
+          value: {
+            getItem: (k) => (Object.prototype.hasOwnProperty.call(mem, k) ? mem[k] : null),
+            setItem: () => { throw new Error('QuotaExceededError'); },
+            removeItem: (k) => { delete mem[k]; }
+          }
+        });
+      }
       if (opts.stubXhr) {
         /* 拦截 XHR，记录请求 URL（用于断言类型参数是否带上） */
         window.__urls = [];
@@ -509,6 +521,32 @@ function boot(opts) {
   await sleep(700);
   assert(wl3.document.getElementById('pwdMask').className.indexOf('open') < 0, 'L3 默认关闭时不拦隐藏');
   assert(wl3.document.getElementById('askTitle').textContent === '隐藏应用', 'L3 直接弹隐藏确认');
+
+  /* ============ G 系列：存储异常 & 卸载残留 ============ */
+  /* G0 存储写不进去时不能"假成功"（否则提示已隐藏、刷新后应用又回来） */
+  const g0 = boot({ bridge: true, badStorage: true });
+  const wg0 = g0.window;
+  click(wg0, wg0.document.getElementById('appsBtn'));
+  const itG = wg0.document.getElementById('appsPanel').querySelectorAll('button.aitem')[0];
+  touch(wg0, itG, 'touchstart', 100, 200);
+  await sleep(700);
+  click(wg0, wg0.document.getElementById('askOk'));
+  await sleep(80);
+  const toastG = wg0.document.getElementById('banbanToast');
+  assert(!!toastG && toastG.textContent.indexOf('保存失败') >= 0, 'G0 存储失败时提示保存失败');
+  assert(wg0.document.getElementById('appsPanel').querySelectorAll('button.aitem').length === 2,
+    'G0 没写成功就不该把应用从列表里去掉');
+
+  /* G1 应用卸载后残留的"幽灵隐藏项"应被自动清理 */
+  const g1 = boot({ bridge: true });
+  const wg1 = g1.window;
+  wg1.localStorage.setItem('g34_class4_hidden', '["com.android.settings","com.ghost.removed"]');
+  click(wg1, wg1.document.getElementById('appsBtn'));
+  await sleep(60);
+  const left1 = JSON.parse(wg1.localStorage.getItem('g34_class4_hidden'));
+  assert(left1.length === 1 && left1[0] === 'com.android.settings',
+    'G1 已卸载的包名被清理: ' + JSON.stringify(left1));
+  assert(wg1.document.getElementById('hideCntTxt').textContent.indexOf('1') >= 0, 'G1 计数同步更新');
 
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);

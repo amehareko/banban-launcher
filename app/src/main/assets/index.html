@@ -1511,7 +1511,9 @@ var CLASS_CITY_LON  = 87.614;
     document.body.className = (cls + ' ' + c).replace(/\s+/g, ' ');
   }
   function readStore(k) { try { return window.localStorage.getItem(k); } catch (e) { return null; } }
-  function writeStore(k, v) { try { window.localStorage.setItem(k, v); } catch (e) {} }
+  function writeStore(k, v) {
+    try { window.localStorage.setItem(k, v); return true; } catch (e) { return false; }
+  }
   function valid(id) {
     for (var i = 0; i < THEMES.length; i++) { if (THEMES[i].id === id) { return true; } }
     return false;
@@ -1795,28 +1797,57 @@ var CLASS_CITY_LON  = 87.614;
       return (a && a.length) ? a : [];
     } catch (e) { return []; }
   }
-  function writeHidden(a) { writeStore(HIDE_KEY, JSON.stringify(a || [])); }
+  function writeHidden(a) { return writeStore(HIDE_KEY, JSON.stringify(a || [])); }
   function isHidden(pkg) {
     var a = readHidden(), i;
     for (i = 0; i < a.length; i++) { if (a[i] === pkg) { return true; } }
     return false;
   }
+  /* 写入失败要让用户知道：否则会"提示已隐藏、刷新后又回来"这种假成功 */
   function setHidden(pkg, on) {
     var a = readHidden(), out = [], i;
     for (i = 0; i < a.length; i++) { if (a[i] !== pkg) { out.push(a[i]); } }
     if (on) { out.push(pkg); }
-    writeHidden(out);
+    if (!writeHidden(out)) { toast('保存失败，存储空间不可用'); return false; }
     refreshPrivUi();
+    return true;
   }
   function hiddenCount() { return readHidden().length; }
 
+  /* 应用被卸载后，它的包名会永远赖在隐藏列表里：计数不减、也点不到，
+     只能靠"全部恢复"清掉。每次拿到真实应用列表时顺手把这些幽灵项清理掉。 */
+  function pruneHidden(data) {
+    var a = readHidden();
+    if (!a.length || !data || !data.length) { return; }
+    var out = [], i, j, alive;
+    for (i = 0; i < a.length; i++) {
+      alive = false;
+      for (j = 0; j < data.length; j++) {
+        if (data[j] && data[j].pkg === a[i]) { alive = true; break; }
+      }
+      if (alive) { out.push(a[i]); }
+    }
+    if (out.length !== a.length) { writeHidden(out); refreshPrivUi(); }
+  }
+
   function getPwd() { return readStore(PWD_KEY) || ''; }
-  function setPwd(v) { writeStore(PWD_KEY, v); }
+  function setPwd(v) {
+    if (!writeStore(PWD_KEY, v)) { toast('保存失败，存储空间不可用'); return false; }
+    return true;
+  }
   function pwdOn() { return readStore(PWD_ON_KEY) === '1'; }
-  function setPwdOn(on) { writeStore(PWD_ON_KEY, on ? '1' : '0'); refreshPrivUi(); }
+  function setPwdOn(on) {
+    if (!writeStore(PWD_ON_KEY, on ? '1' : '0')) { toast('保存失败，存储空间不可用'); return false; }
+    refreshPrivUi();
+    return true;
+  }
   /* 隐藏是否也要密码（默认关；开了但没密码时自动降级为免密，不会把自己锁在外面） */
   function hideLocked() { return readStore(HIDE_LOCK_KEY) === '1'; }
-  function setHideLocked(on) { writeStore(HIDE_LOCK_KEY, on ? '1' : '0'); refreshPrivUi(); }
+  function setHideLocked(on) {
+    if (!writeStore(HIDE_LOCK_KEY, on ? '1' : '0')) { toast('保存失败，存储空间不可用'); return false; }
+    refreshPrivUi();
+    return true;
+  }
 
   /* 通用二次确认弹层（隐藏/恢复/清空 都走它） */
   var askCb = null;
@@ -2084,7 +2115,7 @@ var CLASS_CITY_LON  = 87.614;
     var nm = btn.getAttribute('data-name') || pkg;
     if (isHidden(pkg)) {
       askConfirm('恢复应用', '把「' + nm + '」放回应用列表？', '恢复', function () {
-        setHidden(pkg, false);
+        if (!setHidden(pkg, false)) { return; }
         loadApps();
         toast('已恢复「' + nm + '」');
       });
@@ -2101,7 +2132,7 @@ var CLASS_CITY_LON  = 87.614;
 
   function askHideApp(pkg, nm) {
     askConfirm('隐藏应用', '隐藏「' + nm + '」？隐藏后需长按右下角 ▦ 按钮并输入密码才能显示。', '隐藏', function () {
-      setHidden(pkg, true);
+      if (!setHidden(pkg, true)) { return; } /* 没写进去就别装作成功 */
       loadApps();
       /* 误隐藏的代价是学生再也找不到它，所以给 5 秒后悔药 */
       toast('已隐藏「' + nm + '」', '撤销', function () {
@@ -2117,10 +2148,10 @@ var CLASS_CITY_LON  = 87.614;
     if (b) {
       var data = null;
       try { data = JSON.parse(b.getApps()); } catch (e) {}
-      if (data && data.length) { renderApps(data); return; }
+      if (data && data.length) { pruneHidden(data); renderApps(data); return; }
     }
     var fb = getFallbackApps();
-    if (fb) { renderApps(fb); return; }
+    if (fb) { pruneHidden(fb); renderApps(fb); return; }
     $('applist').innerHTML = '<div class="apps-empty">未检测到应用环境，退出应用重新打开试试</div>';
   }
 
