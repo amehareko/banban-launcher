@@ -130,8 +130,8 @@ gradle assembleRelease
 
 ```bash
 npm i jsdom
-node tools/smoke.js app/src/main/assets/index.html
-# 输出 ALL PASS 就说明主流程没被改坏
+node tools/smoke.js app/src/main/assets/index.html     # 输出 ALL PASS 就说明主流程没被改坏
+node tools/es5-check.js app/src/main/assets/index.html # 老内核语法体检（ES6 语法会让整页白屏）
 ```
 
 ## 📲 安装到班牌

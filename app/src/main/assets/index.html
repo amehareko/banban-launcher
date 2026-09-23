@@ -2286,6 +2286,7 @@ var CLASS_CITY_LON  = 87.614;
     var p = $('panel');
     var vh = window.innerHeight || document.documentElement.clientHeight;
     if (p && vh) { p.style.maxHeight = Math.max(200, vh - 74) + 'px'; }
+    if (p) { p.scrollTop = 0; } /* 换分类后停在上一类的滚动位置很奇怪，直接回顶 */
     if (name === 'priv') { refreshPrivUi(); }
   }
   function initSetSeg() {
