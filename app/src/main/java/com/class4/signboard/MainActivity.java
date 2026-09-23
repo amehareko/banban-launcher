@@ -3,6 +3,8 @@ package com.class4.signboard;
 import android.app.Activity;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.View;
 import android.view.WindowManager;
 import android.webkit.ValueCallback;
@@ -26,7 +28,13 @@ public class MainActivity extends Activity {
     private XWalkView xWalkView;
     private AppBridge appBridge;
     /* 页面当前是否有弹层（设置/应用列表/天气/一言/确认/密码） */
-    private boolean overlayOpen = false;
+    private volatile boolean overlayOpen = false;
+    /* 弹层状态查询：不让页面"推" scheme（部分 WebView 对非手势触发的自定义协议
+     * 导航不回调），改由原生每 500ms 主动问一次页面，通道是已验证可用的
+     * evaluateJavascript。查询结果最多滞后 500ms，对返回键足够。 */
+    private static final long OVERLAY_POLL_MS = 500;
+    private Handler uiHandler = null;
+    private Runnable overlayPoll = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +89,30 @@ public class MainActivity extends Activity {
         });
 
         xWalkView.load(PAGE_URL, null);
+        startOverlayPoll();
+    }
+
+    private void startOverlayPoll() {
+        uiHandler = new Handler(Looper.getMainLooper());
+        overlayPoll = new Runnable() {
+            @Override
+            public void run() {
+                if (xWalkView != null) {
+                    xWalkView.evaluateJavascript(
+                            "(function(){try{return !!(window.__banbanOverlay&&window.__banbanOverlay());}catch(e){return false;}})()",
+                            new ValueCallback<String>() {
+                                @Override
+                                public void onReceiveValue(String value) {
+                                    overlayOpen = (value != null && value.indexOf("true") >= 0);
+                                }
+                            });
+                }
+                if (uiHandler != null && overlayPoll != null) {
+                    uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
+                }
+            }
+        };
+        uiHandler.postDelayed(overlayPoll, OVERLAY_POLL_MS);
     }
 
     private void hideSystemUi() {
@@ -120,6 +152,9 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (uiHandler != null && overlayPoll != null) { uiHandler.removeCallbacks(overlayPoll); }
+        uiHandler = null;
+        overlayPoll = null;
         if (xWalkView != null) {
             xWalkView.onDestroy();
             xWalkView = null;

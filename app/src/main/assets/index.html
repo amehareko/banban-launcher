@@ -2037,6 +2037,10 @@ var CLASS_CITY_LON  = 87.614;
     if (appsOpen) { closeApps(); return true; }
     return false;
   };
+  /* 供原生定时查询：现在有没有弹层。
+     比"页面推 scheme"可靠——部分 WebView 对非用户手势触发的自定义协议导航不回调，
+     而 evaluateJavascript 在本项目已验证可用，让原生来问就不会漏。 */
+  window.__banbanOverlay = function () { return !!anyOverlay(); };
 
   /* 通用长按绑定（给按钮这类不参与滚动的元素用）：
      长按触发后会吃掉紧随其后那一次 click，避免"长按 + 点击"双响 */

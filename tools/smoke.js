@@ -588,6 +588,18 @@ function boot(opts) {
   assert(wg4.document.getElementById('pwdTitle').textContent.indexOf('设置新密码') >= 0, 'G4 进入设新密码步骤');
   assert(wg4.document.getElementById('pwdHint').style.display === 'none', 'G4 设新密码时收起「忘记密码」提示');
 
+  /* B5 原生定时查询接口：不依赖页面推 scheme，返回键据此判断 */
+  const b5 = boot({ bridge: true });
+  const w5b = b5.window;
+  assert(typeof w5b.__banbanOverlay === 'function', 'B5 页面提供 __banbanOverlay');
+  assert(w5b.__banbanOverlay() === false, 'B5 无弹层时返回 false');
+  click(w5b, w5b.document.getElementById('themeBtn'));
+  assert(w5b.__banbanOverlay() === true, 'B5 设置面板打开时返回 true');
+  assert(w5b.__banbanCloseTop() === true, 'B5 返回键关掉它');
+  assert(w5b.__banbanOverlay() === false, 'B5 关掉后回到 false');
+  w5b.document.getElementById('pwdMask').className = 'wxmask open';
+  assert(w5b.__banbanOverlay() === true, 'B5 密码层也算弹层');
+
   console.log(failures === 0 ? '\nALL PASS' : '\n' + failures + ' FAILURE(S)');
   process.exit(failures === 0 ? 0 : 1);
 })().catch((e) => { console.error('TEST CRASH:', e); process.exit(1); });
